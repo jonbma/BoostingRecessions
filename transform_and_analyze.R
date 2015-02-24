@@ -32,17 +32,9 @@ missmap(df.US[0:130], main="US Recession Forecast Data", col=c("yellow", "black"
 str(df.US)
 str(df.US[100:129])
 
-#Convert Recession into Factors
-df.US$USRECD <- as.factor(df.US$USRECD)
-
 #Convert DATE character into DATE object
 df.US$DATE = as.Date(df.US$DATE, format="%m/%d/%Y")
 
-#Change Index to Dates
-rownames(df.US) = df.US$DATE
-#index(df.US) = df.US$DATE
-
-#Create Time Series Object for graphin
 zoo.US = read.zoo(df.US)
 ##### Seasonal Adjust #####
 
