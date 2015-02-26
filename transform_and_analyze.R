@@ -1,17 +1,11 @@
 """
-Goal:
-2. Take transformations
-3. Plot relevant metrics for intuition
-4. Include lags into dataset
-5. Apply Adaboost
-6. Separate into Train and Test and apply Adaboost and test prediction power
-7. Gather Japanese Data Set or Try on U.S Severity of Recession
-
 To Do
 -Seasonally adjust NSA series
--Turn dataframe into a time series or at least make sure to be taking differences correctly...
--Start taking log difference, log second difference, keep as level
+-figure out how to combine different series and remove rows with NA in them
+-figure out how to include lags to forecast
 -Run adaboost
+-Separate into Train and Test and apply Adaboost and test prediction power
+-Gather Japanese Data Set or Try on U.S Severity of Recession
 """
 
 #Preamble
@@ -24,18 +18,18 @@ library(xts)
 df.US <- read.csv("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
 View(df.US)
 
-#Find Missing Data
-require(Amelia)
-missmap(df.US[0:130], main="US Recession Forecast Data", col=c("yellow", "black"), legend=FALSE)
-
 #Structure of Data
 str(df.US)
 str(df.US[100:129])
 
 #Convert DATE character into DATE object
 df.US$DATE = as.Date(df.US$DATE, format="%m/%d/%Y")
-
 zoo.US = read.zoo(df.US)
+
+#Fill in NA for LHELX#
+#na.approx(zoo.US$LHELX, zoo.US$LHELM)
+zoo.US = na.aggregate(zoo.US)
+
 ##### Seasonal Adjust #####
 
 NSA = c("PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST", "A0M070", "FYAAAC", "FYBAAC", "EXRSW", "EXRJAN")
@@ -46,34 +40,57 @@ ts.PERMITNSA_SA = ts(df.US[,"PERMITNSA"],frequency = 12, start=c(1959,2)) - (dec
 df.US[,"PERMITNSA"] = as.numeric(ts.PERMITNSA_SA)
 
 ##### Transform #####
-df.US_TRANS = df.US
-#Keep As Level
-df.US$AOM011
-levels = c("PMP", "CES151", "AOM011", "FCLBMC", "SCP90F","SFYGM3","SFYGM6","SFYGT1","SFYGT5","SFYGT10","SFYAAAC","SFYBAAC", )
-  
-df[,c("IPS10","IPS11")]
+
+#Keep Already Transformed
+zoo.US_fix = zoo.US[,c("USRECD","YPR")]
+
+#Keep As Level 
+levels = c("PMP","CES151","A0M001","PMEMP","PMI","PMNO","PMDEL","PMNV","FCLBMC","PMCP", "SCP90F",  "SFYGM3",	"SFYGM6",	"SFYGT1",	"SFYGT5",	"SFYGT10",	"SFYAAAC",	"SFYBAAC")
+zoo.US_levels = zoo.US[,levels]
+
+#Log
+log_stay = c("HSFR","HSNE","HSMW","HSSOU","HSWST","PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST")
+zoo.US_log = log(zoo.US[,log_stay])
+
+#Level Transform First Difference
+level_1D = c("UTL11", "LHELX", "LHUR", "LHU680", "CES155","HHSNTN", "CCIPY", "FYFF","CP90","FYGM3","FYGM6","FYGT1","FYGT5","FYGT10","FYAAAC","FYBAAC")
+zoo.US_1D = diff(zoo.US[,level_1D])
 
 #Log Transform First Difference
+log_1D = c("IPS10",  "IPS11",	"IPS12",	"IPS13",	"IPS18",	"IPS25",	"IPS32",	"IPS34",	"IPS38",	"IPS43",	"IPS299",	"IPS307",	"IPS306", "LHEM",  "LHNAG",	"LHU5",	"LHU14",	"LHU15",	"LHU26",	"LHU27",	"CLAIMUII",	"CES002",	"CES003",	"CES006",	"CES011",	"CES015",	"CES017", "CES033",  "CES046",	"CES048",	"CES049",	"CES053",	"CES088",	"CES140", "A1M008",  "A0M007",	"A0M027",	"A0M070", "CONS.R",  "MTQ",	"A0M059","FM2.R", "EXRUS",  "EXRSW",	"EXRJAN",	"EXRUK",	"EXRCAN", "FSPCOM",  "FSPIN", "FSPXE")
+zoo.US_log_1D = diff(log(zoo.US[,log_1D]), lag = 1)
+
 #Log Transform Second Difference
-#Group 1
-for (x in 4:16)
-{
-df.US_TRANS[,x] = c(diff(log(df.US[,x]), lag = 1),0)
-}
+log_2D = c("CES275",  "CES277",	"CES278", "FM1",  "FM2",	"FMSCU",	"FMFBA",	"FMRRA",	"FMRNBA",	"FCLNBW",	"CCINRV", "PWFSA",  "PWFCSA",	"PWIMSA",	"PWCMSA",	"PSCCOM",	"PW102",	"PUNEW",	"PU83",	"PU84",	"PU85",	"PUC",	"PUCD",	"PUS",	"PUXF",	"PUXHS",	"PUXM",	"GMDC",	"GMDCD",	"GMDCN",	"GMDCS")
+zoo.US[,log_2D]
+zoo.US_log_2D = diff(log(zoo.US[,log_2D]), lag = 2)
 
-df.US_TRANS[,18] = c(df.diff((US[,18]), lag = 1),0)
+#Need to find what 2 series are missing
 
+ncol(zoo.US_all) #127 columns
+ncol(df.US) #131 columns including a date colum, so missing 3 series..
 
-#Keep as Level
-
-#Second Difference Log Transform
+#Combine transformed Series
+zoo.US_all = merge(zoo.US_fix, zoo.US_levels, zoo.US_log, zoo.US_1D, zoo.US_log_1D, zoo.US_log_2D)
+#Remove rows with NA in them
+zoo.US_all = (na.omit(zoo.US_all))
 
 ### Summary of Data ###
 #Plot Graphs
-plot(df.US$DATE, REC, type="l", col = "red", lwd=2, xlab="Date", ylab="Recession", main = "US Recessions 1959-2014")
+#plot(df.US$DATE,, type="l", col = "red", lwd=2, xlab="Date", ylab="Recession", main = "US Recessions 1959-2014")
 
 
 ##### Create Lags #####
 
 ##### Apply Gradient Boosting #####
-gbm(USRECD ~ YPR, data = df.US)
+gbm.US1 = gbm(zoo.US_all$USRECD ~ . ,data =zoo.US_all[,2:127], distribution = "bernoulli", shrinkage = 0.001, train.fraction = 0.5, bag.fraction =0.5)
+gbm.US2 = gbm(zoo.US_all$USRECD ~ . ,data =zoo.US_all[,2:127], distribution = "bernoulli", shrinkage = 0.01, train.fraction = 0.5, bag.fraction =0.5)
+
+
+#Use Out of Bag Estimator
+best.iter <- gbm.perf(gbm.US1,method="OOB")
+
+best.iter <- gbm.perf(gbm.US1,method="test")
+
+#Print the Top Predictors
+summary(gbm.US1,n.trees=best.iter)
