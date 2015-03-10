@@ -1,5 +1,7 @@
 """
 To Do
+-toss out USTONCSERJ because its all zero...
+-in us include michigan sentiment!
 -modularize h,d function
 -Gather Japanese Data Set
 -Try on U.S Severity of Recession
@@ -18,6 +20,34 @@ library(Amelia)
 
 #Read In Data as Dataframe for US
 df.US <- read.csv("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
+df.US <- read.csv("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC_SEV.csv")
+df.US$USRECD <- abs(df.US$USRECD)
+
+transform_season_US <- function(df.US)
+{
+  ####US ###
+  df.US = date_COUNTRY(df.US)
+  zoo.US = zoo_COUNTRY(df.US)
+  zoo.US = na.approx(zoo.US)
+  #Last Observation Carry Forward
+  zoo.US = na.locf(na.locf(na.approx(zoo.US)), fromLast = TRUE)
+  #Add Constant to "FMRNBA" so not negative log difference
+  zoo.US$FMRNBA = zoo.US$FMRNBA  + 4000 
+  View(df.US)
+  str(df.US)
+  
+  ## United States ### 
+  NSA = c("PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST", "A0M070", "FYAAAC", "FYBAAC", "EXRSW", "EXRJAN")
+  ts.US_NSA = ts(df.US[,NSA], frequency = 12, start=c(1959,2))
+  ts.PERMITNSA_SA = ts.US_NSA[,NSA[1]] - decompose(ts.US_NSA[,NSA[1]])$season
+  for(i in 1:length(NSA))
+  {
+    zoo.US[,NSA[i]]=ts.US_NSA[,NSA[i]] - decompose(ts.US_NSA[,NSA[i]])$season
+  }
+  
+  
+  
+}
 
 #Read in Data as Dataframe for Japan
 strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL_TRUNC.csv")
@@ -162,16 +192,13 @@ log_transform <-function(zoo.C, log_0D)
   return(log(zoo.C[,log_0D]))
 }
 
-TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_0D, log_1D,log_2D)
+TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
 {
   #Same
   zoo.C_same = zoo.C[,same]
   
   #Level First Difference
   zoo.C_level_1D = diff(zoo.C[,level_1D], differences = 1)
-  
-  #Log 0 Difference
-  #zoo.C_log_0D = log(zoo.C[,log_0D])
   
   #Log First Difference
   zoo.C_log_1D = zoo(apply(zoo.C[,log_1D], 2, Delt),time(zoo.C))
@@ -180,59 +207,102 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_0D, log_1D,log_2D)
   zoo.C_log_2D = diff(log(zoo.C[,log_2D]), differences = 2)
   
   #Merge
-  zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D, log(zoo.JP[,log_0D_JP]), zoo.C_log_1D, zoo.C_log_2D)
+  zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D, zoo.C_log_1D, zoo.C_log_2D)
   
+  #Return All Merged for Lag = 0
   return(zoo.C_lag0)
 }
   
   
-TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_0D, log_1D,log_2D)
-zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_0D_JP, log_1D_JP, log_2D_JP)
+zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_1D_JP, log_2D_JP)
 zoo.JP_lag0 = na.omit(zoo.JP_lag0)
 
 missmap(zoo.JP_lag0, main="Japan Data - Missings Map",  col=c("yellow", "black"), legend=TRUE)
 
 
-#Need to find what 2 series are missing
+#Compare Original and Transformed
 ncol(zoo.JP_lag0) #Have duplicates, also check for NaN
 nrow(zoo.JP_lag0) 
 ncol(zoo.JP) 
 nrow(zoo.JP) 
 
-
-setdiff(names(zoo.JP),names(zoo.JP_lag0))
-setdiff(names(zoo.JP_lag0),names(zoo.JP))
 ### Summary of Data ###
-#Plot Graphs
+
+#US
 plot(zoo.US_lag0$USRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1959-2014")
 autoplot.zoo(zoo.US_lag0$USRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1959-2014")
-##### Create Lags #####
+
+#Japan
+autoplot.zoo(zoo.JP_lag0$JAPRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1978-2014")
+#Look at Interest Rate Spread versus recession
+autoplot.zoo(zoo.JP_lag0$INTSPREAD)
 
 ##### Apply Gradient Boosting #####
 
 #Use GBM to forecast 3 months with 3 lags
-gbm.forecast_lag <- function(h, d, data)
+gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country)
 {
-  for(i in )
-  zoo.US_lag456 = merge(lag(zoo.US_lag0[,2:127],-), zoo.US_lag5, zoo.US_lag6)
-  
-  return(object)
-}
+  h = forecast
+  d = lags
+  c = country
+  horizon = seq(from =h+1, to = h+d)
+  #Lag h+1,h+2,...,h+d  
+  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
+  #Need to get Recession Information because not included in Lags
+  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
 
-zoo.US_lag4 = lag(zoo.US_lag0[,2:127],-4)
-zoo.US_lag5 = lag(zoo.US_lag0[,2:127],-5)
-zoo.US_lag6 = lag(zoo.US_lag0[,2:127],-6)
-zoo.US_lag456 = merge(zoo.US_lag4, zoo.US_lag5, zoo.US_lag6)
-zoo.US_lag456 = na.omit(zoo.US_lag456)
-USRECD_lag456 = window(zoo.US_lag0$USRECD, start = start(zoo.US_lag456), end = end(zoo.US_lag456))
-gbm.US_lag456 = gbm(USRECD_lag456 ~ . ,
-                    data =zoo.US_lag456, 
-                    distribution = "bernoulli",
-                    shrinkage = 0.01, 
-                    bag.fraction = 0.5, 
-                    train.fraction = 0.5, 
-                    cv.folds = 2, 
-                    n.trees = 2000)
+  #Create GBM Model using ALL data with 50% as train
+  gbm.C = gbm(REC_lagRESULT ~ . ,
+                      data = zoo.C_lagRESULT,
+                      distribution = "poisson",
+                      shrinkage = 0.01, 
+                      bag.fraction = 0.5, 
+                      train.fraction = 0.5, 
+                      cv.folds = 2, 
+                      n.trees = 2000)
+  
+  #best.iter_test = gbm.perf(gbm.C, method="test"))
+  best.iter_cv = gbm.perf(gbm.C, method="cv")
+
+  print(best.iter_cv)
+  #summary(gbm.C,n.trees=best.iter_test)
+  print(summary(gbm.C,n.trees=best.iter_cv))
+
+  #head(summary(gbm.US_h12d4,n.trees=best.iter_h12d4_cv), n = 15)
+  
+  #Predict in Sample
+  pred = predict(gbm.C,zoo.C_lagRESULT, 
+                 n.trees= best.iter_cv, 
+                 type="response")
+  
+  #Plot Prediction Against Actual Recession
+  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
+  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
+  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
+  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
+  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,begin_month), frequency = 12)
+  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  
+  #Use GG Plot here and include what is h and d
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  
+  #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
+  #dev.off()
+
+  return(gbm.C)
+}
+  
+gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan")  
+gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan")  
+gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan")  
+gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan")  
+
+
+
+gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States")
+
 
 
 #Use GBM to forecast 6 months with 3 lags
@@ -378,14 +448,3 @@ par(new=TRUE)
 plot(ts.predh12d4, col = "red", ylab = "Prob. of Recession", main = "Forecasting 12 Months", axes = TRUE)
 png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH12D4_V1.png")
 dev.off()
-
-
-
-
-  #Test Predict
-confusion <- function(a, b){
-  tbl <- table(a, b)
-  mis <- 1 - sum(diag(tbl))/sum(tbl)
-  list(table = tbl, misclass.prob = mis)
-}
-confusion(predict(gbm.US1, zoo.US_all), as.factor(zoo.US_all$USRECD))$table
