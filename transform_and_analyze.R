@@ -25,18 +25,20 @@ df.US$USRECD <- abs(df.US$USRECD)
 
 transform_season_US <- function(df.US)
 {
-  ####US ###
+  ####Convert to Zoo ###
   df.US = date_COUNTRY(df.US)
   zoo.US = zoo_COUNTRY(df.US)
+  
+  ### Fill in NA ####
   zoo.US = na.approx(zoo.US)
   #Last Observation Carry Forward
   zoo.US = na.locf(na.locf(na.approx(zoo.US)), fromLast = TRUE)
-  #Add Constant to "FMRNBA" so not negative log difference
+  ### Add Constant to "FMRNBA" so not negative log difference ###
   zoo.US$FMRNBA = zoo.US$FMRNBA  + 4000 
-  View(df.US)
+  #View(df.US)
   str(df.US)
   
-  ## United States ### 
+  ## Seasonally Adjust ### 
   NSA = c("PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST", "A0M070", "FYAAAC", "FYBAAC", "EXRSW", "EXRJAN")
   ts.US_NSA = ts(df.US[,NSA], frequency = 12, start=c(1959,2))
   ts.PERMITNSA_SA = ts.US_NSA[,NSA[1]] - decompose(ts.US_NSA[,NSA[1]])$season
@@ -44,6 +46,12 @@ transform_season_US <- function(df.US)
   {
     zoo.US[,NSA[i]]=ts.US_NSA[,NSA[i]] - decompose(ts.US_NSA[,NSA[i]])$season
   }
+  
+  
+  #US
+  plot(zoo.US_lag0$USRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1959-2014")
+  autoplot.zoo(zoo.US_lag0$USRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1959-2014")
+  
   
   
   
