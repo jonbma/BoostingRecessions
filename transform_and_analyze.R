@@ -69,17 +69,49 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
 
 ### Read In Data for US ####
 
-#USRECD
-df.US <- read.csv("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
-
-#Severity
-df.US <- read.csv("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC_SEV.csv")
-df.US$USRECD <- as.integer(abs(df.US$USRECD))
 
 ### US Transform Season Function ### 
-transform_season_US <- function(df.US)
+transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
+  df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
+                    skip=9,                # skip the first 8
+                    stringsAsFactors=FALSE
+  )
+  
+  df.US_header <- read.csv(text=strs.US,             # read from an R object rather than a file
+                           nrows=10,                # skip the first line
+                           stringsAsFactors=FALSE,
+                           row.names = 1
+  )
+  #Get US Recessionary binary 0 1
+  if(rec == "D")
+  {
+    df.US$USRECE <- NULL
+    df.US$USRECG <- NULL
+  }
+  #Get US Severity with lowest Employment
+  else if(rec == "E")
+  {
+    df.US$USRECD <- NULL
+    df.US$USRECG <- NULL
+    df.US$USRECD <- df.US$USRECE
+    df.USRECE <- NULL
+    df.US$USRECD <- as.integer(abs(df.US$USRECD))
+  
+  }
+  #Get US Severity with lowest GDP
+  else
+  {
+    df.US$USRECE <- NULL
+    df.US$USRECD <- NULL
+    df.US$USRECD <- df.US$USRECG
+    df.USRECG <- NULL
+    df.US$USRECD <- as.integer(abs(df.US$USRECD))
+    
+  }
+  
   df.US = date_COUNTRY(df.US)
   zoo.US = zoo_COUNTRY(df.US)
   
@@ -93,7 +125,7 @@ transform_season_US <- function(df.US)
   str(df.US)
   
   ## Seasonally Adjust ### 
-  NSA = c("PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST", "A0M070", "FYAAAC", "FYBAAC", "EXRSW", "EXRJAN")
+  NSA = c("PERMITNSA","HSBNE","HSBMW","HSBSOU","HSBWST", "A0M070", "FYAAAC", "FYBAAC")
   ts.US_NSA = ts(df.US[,NSA], frequency = 12, start=c(1959,2))
   ts.PERMITNSA_SA = ts.US_NSA[,NSA[1]] - decompose(ts.US_NSA[,NSA[1]])$season
   for(i in 1:length(NSA))
@@ -146,27 +178,23 @@ transform_season_US <- function(df.US)
   return(zoo.US_lag0)
 }
 
-### Get Result for US ####
-zoo.US_lag0 = transform_season_US(df.US)
-
 ## Transform Japan Function ##
 transform_season_JP <- function(df.JP)
 {
   
   #### Read in Data for Japan ####
-  
   strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL_TRUNC.csv")
   df.JP <- read.csv(text=strs.JP,             # read from an R object rather than a file
                     skip=9,                # skip the first line
                     stringsAsFactors=FALSE
   )
-  
+    
   df.JP_header <- read.csv(text=strs.JP,             # read from an R object rather than a file
                            nrows=10,                # skip the first line
                            stringsAsFactors=FALSE,
                            row.names = 1
   )
-  
+
   ###Convert to Zoo###
   df.JP = date_COUNTRY(df.JP)
   zoo.JP = zoo_COUNTRY(df.JP)
@@ -228,9 +256,6 @@ transform_season_JP <- function(df.JP)
   return(zoo.JP_lag0)
 }
 
-
-zoo.JP_lag0 = transform_season_JP(df.JP)
-
 ######## Apply Gradient Boosting ########
 
 #Use GBM to forecast 3 months with 3 lags
@@ -289,11 +314,23 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 }
   
 
+### Japan ###
+#Transform and Season Japan#
+zoo.JP_lag0 = transform_season_JP(df.JP)
+
+
 #Apply Boosting to Japan
-gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan")  
-gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan")  
+gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli")  
+gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli")  
 gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan")  
 gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan")  
 
+### United States ###
+#Transform and Season#
+zoo.US_lag0 = transform_season_US(df.US, 'G')
+
+
 #Apply Boosting to US
 gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", "poisson")
+gbm.US_h3d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", "poisson")
+
