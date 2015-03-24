@@ -13,6 +13,7 @@ library(xts)
 library(stats)
 library(Amelia)
 library(quantmod)
+library(pROC)
 
 ### Functions We'll Need ###
 
@@ -86,6 +87,7 @@ transform_season_US <- function(df.US, rec = 'D')
                            row.names = 1
   )
   #Get US Recessionary binary 0 1
+
   if(rec == "D")
   {
     df.US$USRECE <- NULL
@@ -98,20 +100,21 @@ transform_season_US <- function(df.US, rec = 'D')
     df.US$USRECG <- NULL
     df.US$USRECD <- df.US$USRECE
     df.USRECE <- NULL
-    df.US$USRECD <- as.integer(abs(df.US$USRECD))
-  
+    df.US$USRECD[abs(df.US$USRECD) > 0] <- as.integer(abs(df.US$USRECD[abs(df.US$USRECD) > 0])+1)    
   }
   #Get US Severity with lowest GDP
   else
   {
+    #Delete two other columns
     df.US$USRECE <- NULL
     df.US$USRECD <- NULL
+    #Set US Severity with lowest GDP to USRECD
     df.US$USRECD <- df.US$USRECG
+    #Delete US Severity column
     df.USRECG <- NULL
-    df.US$USRECD <- as.integer(abs(df.US$USRECD))
-    
+    #Order Recessions, if gdp less than 0 set as 1
+    df.US$USRECD[abs(df.US$USRECD) > 0] <- as.integer(abs(df.US$USRECD[abs(df.US$USRECD) > 0])+1)    
   }
-  
   df.US = date_COUNTRY(df.US)
   zoo.US = zoo_COUNTRY(df.US)
   
@@ -259,7 +262,7 @@ transform_season_JP <- function(df.JP)
 ######## Apply Gradient Boosting ########
 
 #Use GBM to forecast 3 months with 3 lags
-gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli")
+gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5 )
 {
   h = forecast
   d = lags
@@ -276,7 +279,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
                       distribution = distr,
                       shrinkage = 0.01, 
                       bag.fraction = 0.5, 
-                      train.fraction = 0.5, 
+                      train.fraction = train, 
                       cv.folds = 2, 
                       n.trees = 2000)
   
@@ -299,7 +302,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
   end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
   end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
-  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,begin_month), frequency = 12)
+  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
   ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
@@ -310,7 +313,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
 
-  return(gbm.C)
+  return(list(ts.pred, ts.REC))
 }
   
 
@@ -318,19 +321,29 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 #Transform and Season Japan#
 zoo.JP_lag0 = transform_season_JP(df.JP)
 
-
 #Apply Boosting to Japan
-gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli")  
+gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0)  
+roc(gbm.JP_h0d3[1],gbm.JP_h0d3[2])
+
 gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli")  
 gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan")  
 gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan")  
 
 ### United States ###
 #Transform and Season#
-zoo.US_lag0 = transform_season_US(df.US, 'G')
+zoo.US_lag0 = transform_season_US(df.US)
+zoo.US_lag0E = transform_season_US(df.US, 'E')
+zoo.US_lag0G = transform_season_US(df.US, 'G')
 
 
 #Apply Boosting to US
-gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", "poisson")
-gbm.US_h3d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", "poisson")
+
+#3 Years Ahead
+gbm.US_h3d3_E = gbm.forecast_lag(3,3,zoo.US_lag0E, "United States", "poisson")
+gbm.US_h3d3_G = gbm.forecast_lag(6,3,zoo.US_lag0G, "United States", "poisson")
+
+gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
+roc(gbm.US_h3d3[[2]],gbm.US_h3d3[[1]])
+
+
 
