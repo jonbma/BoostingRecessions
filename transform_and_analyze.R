@@ -14,6 +14,12 @@ library(stats)
 library(Amelia)
 library(quantmod)
 library(pROC)
+library(dyn)
+library(sandwich) #
+library(BMS)
+library(mboost)
+setwd("~/Google Drive/Independent Work/Code")
+source("gw.test.R")
 
 ### Functions We'll Need ###
 
@@ -182,7 +188,7 @@ transform_season_US <- function(df.US, rec = 'D')
 }
 
 ## Transform Japan Function ##
-transform_season_JP <- function(df.JP)
+transform_season_JP <- function()
 {
   
   #### Read in Data for Japan ####
@@ -218,11 +224,11 @@ transform_season_JP <- function(df.JP)
   JP_NSA = names(df.JP_header['NSA',df.JP_header['NSA',] == 1])
   zoo.JP = SA_COUNTRY(zoo.JP, JP_NSA)
     
-  sort(df.JP_header['TRANSFORM NEEDED',])
+  sort(df.JP_header['DONE_TRANS',])
   
   JP_var_names <- function(name)
   {
-    return(names(df.JP_header['TRANSFORM NEEDED',df.JP_header['TRANSFORM NEEDED',] == name]))
+    return(names(df.JP_header['NEED_TRANS',df.JP_header['NEED_TRANS',] == name]))
   }
   
   
@@ -262,7 +268,7 @@ transform_season_JP <- function(df.JP)
 ######## Apply Gradient Boosting ########
 
 #Use GBM to forecast 3 months with 3 lags
-gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5 )
+gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5)
 {
   h = forecast
   d = lags
@@ -312,22 +318,109 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
-
-  return(list(ts.pred, ts.REC))
+    return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
 }
-  
 
+gbm.roll <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5)
+{
+  h = forecast
+  d = lags
+  c = country
+  horizon = seq(from =h+1, to = h+d)
+  #Lag h+1,h+2,...,h+d  
+  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
+  #Need to get Recession Information because not included in Lags
+  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
+  
+  #Create GBM Model using ALL data with 50% as train
+  gbm.C = gbm(REC_lagRESULT ~ . ,
+              data = zoo.C_lagRESULT,
+              distribution = distr,
+              shrinkage = 0.01, 
+              bag.fraction = 0, 
+              train.fraction = 1.0, 
+              n.trees = 2000)
+  
+  #best.iter_test = gbm.perf(gbm.C, method="test"))
+  best.iter_cv = gbm.perf(gbm.C, method="cv")
+  
+  print(best.iter_cv)
+  #summary(gbm.C,n.trees=best.iter_test)
+  print(summary(gbm.C,n.trees=best.iter_cv))
+  
+  #head(summary(gbm.US_h12d4,n.trees=best.iter_h12d4_cv), n = 15)
+  
+  #Predict in Sample
+  pred = predict(gbm.C,zoo.C_lagRESULT, 
+                 n.trees= best.iter_cv, 
+                 type="response")
+  
+  #Plot Prediction Against Actual Recession
+  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
+  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
+  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
+  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
+  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  
+  #Use GG Plot here and include what is h and d
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  
+  #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
+  #dev.off()
+  return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
+}
+
+rollapply(zoo.US_lag0 ,width = 180, FUN = gbm.roll)
+
+
+
+mbm.forecast_lag <- function(forecast, lags, zoo.C_lag0)
+{
+  h = forecast
+  d = lags
+  horizon = seq(from =h+1, to = h+d)
+  #Lag h+1,h+2,...,h+d  
+  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
+  #Need to get Recession Information because not included in Lags
+  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
+  
+  #Create GBM Model using ALL data with 50% as train
+  mbm.C = mboost(REC_lagRESULT ~ . ,
+              data = zoo.C_lagRESULT,
+              baselearner = "bols")
+  
+  #Predict in Sample
+  pred = predict(mbm.C, zoo.C_lagRESULT, type="response")
+  
+  #Plot Prediction Against Actual Recession
+  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
+  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
+  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
+  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
+  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  
+  #Use GG Plot here and include what is h and d
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste("United States", ": Forecast",h,"Months"), axes = TRUE)
+
+  return(list(ts.REC,ts.pred))
+}
+mbm.forecast_lag(0,3,zoo.US_lag0)
 ### Japan ###
 #Transform and Season Japan#
-zoo.JP_lag0 = transform_season_JP(df.JP)
+zoo.JP_lag0 = transform_season_JP()
 
 #Apply Boosting to Japan
-gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0)  
-roc(gbm.JP_h0d3[1],gbm.JP_h0d3[2])
-
-gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli")  
-gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan")  
-gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan")  
+gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
+gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
+gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
+gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
+print(list(gbm.JP_h0d3, gbm.JP_h3d3, gbm.JP_h6d3, gbm.JP_h12d4))
 
 ### United States ###
 #Transform and Season#
@@ -336,14 +429,118 @@ zoo.US_lag0E = transform_season_US(df.US, 'E')
 zoo.US_lag0G = transform_season_US(df.US, 'G')
 
 
-#Apply Boosting to US
+##Logit Models##
 
-#3 Years Ahead
-gbm.US_h3d3_E = gbm.forecast_lag(3,3,zoo.US_lag0E, "United States", "poisson")
-gbm.US_h3d3_G = gbm.forecast_lag(6,3,zoo.US_lag0G, "United States", "poisson")
+glm.predict_roc <- function(forecast, country = "US")
+{
+  h = forecast
+  if(country == "US")
+  {
+  REC = "USRECD"
+  zoo.C = zoo.US_lag0
+  glm.C_h = dyn$glm(REC ~ lag(variable, -1-h), data = zoo.C, family = "binomial")
+  #Predict Logit onto data
+  pred.glm_C_h = predict(glm.C_h, data.frame = zoo.C$REC, type = "response")
+  #Line Up recession and prediction for ROC
+  REC_h = window(zoo.C$REC, start = start(pred.glm_C_h), end = end(pred.glm_C_h))       
+  }
+  else
+  {
+    print("Need to update for Japan and UK")
+  }
+  
+  return(roc(REC_h, pred.glm_C_h))
+}
 
+glm.roll <- function(zoo.C, forecast = 0)
+{
+  h = forecast
+  window = 180
+  iterations = (nrow(zoo.C)-window)
+  print(iterations)
+  pred_final = vector("numeric", length(1:iterations))
+  for(i in 1:iterations)
+  {
+    #Get zoo from 1 to 180, then 2 to 182
+    value  <- sum(i,window)
+    zoo.C = zoo.US_lag0[i:value,]
+    #lag.1 <- window(zoo.US_lag0$PMP, start = i, end = )
+    glm.C_h = dyn$glm(USRECD ~ lag(PMP, -1), data = zoo.C, family = "binomial")
+    #Forecast using LAST time to forecast NEXT period
+    pred_final[i] = (predict.glm(glm.C_h, newdata = zoo.US_lag0[value,], type = "response"))
+  }
+  return(pred_final)
+}
+
+
+#Logit: H = 0
+
+#In-Sample
+glm.US_h0 = dyn$glm(USRECD ~ lag(PMP, -1), data = zoo.US_lag0, family = "binomial")
+pred.glm.US_h0 = predict(glm.US_h0d0, data.frame = zoo.US_lag0, type = "response")
+USRECD1 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0d0), end = end(pred.glm.US_h0d0))
+roc(USRECD1, pred.glm.US_h0)
+
+#Out-Sample
+pred.glm.US_h0_OS = glm.roll(zoo.US_lag0)
+
+
+
+#Logit: H = 3
+glm.US_h3 = dyn$glm(USRECD ~ lag(SFYGT1, -1+-3), data = zoo.US_lag0, family = "binomial")
+pred.glm.US_h3 = predict(glm.US_h3, data.frame = zoo.US_lag0, type = "response")
+USRECD3 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h3), end = end(pred.glm.US_h3))
+roc(USRECD3, pred.glm.US_h3)
+
+#Logit: H = 6
+glm.US_h6 = dyn$glm(USRECD ~ lag(SFYGT1, -1+-6), data = zoo.US_lag0, family = "binomial")
+pred.glm.US_h6 = predict(glm.US_h6, data.frame = zoo.US_lag0, type = "response")
+USRECD6 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h6), end = end(pred.glm.US_h6))
+roc(USRECD6, pred.glm.US_h6)
+
+#Logit: H = 12
+glm.US_h12 = dyn$glm(USRECD ~ lag(SFYGT10, -1+-12), data = zoo.US_lag0, family = "binomial")
+pred.glm.US_h12 = predict(glm.US_h12, data.frame = zoo.US_lag0$USRECD, type = "response")
+USRECD12 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h12), end = end(pred.glm.US_h12))
+roc(USRECD12, pred.glm.US_h12)
+
+
+#GW Test
+USRECD3 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0d0), end = end(pred.glm.US_h0d0))
+
+starth0d3 = start(gbm.US_h0d3)
+endh0d3 = end(gbm.US_h0d3)
+
+begin_month = as.numeric(format(start(gbm.US_h0d3)[2],"%m"))
+begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
+end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
+end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
+ts.gbm.US_h0d3 = ts(gbm.US_h0d3, start = c(start(gbm.US_h0d3)[1], start(gbm.US_h0d3)[2]), end=c(end(gbm.US_h0d3)[1], end((gbm.US_h0d3)[2]), frequency = 12)
+ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+
+
+gw.test(
+  pred.glm.US_h0d0[3:length(pred.glm.US_h0d0)],
+  gbm.US_h0d3, 
+  zoo.US_lag0$USRECD[4:length(zoo.US_lag0$USRECD)],
+  T = length(gbm.US_h0d3),
+  tau = 10, 
+  method = c("HAC", "NeweyWest"),
+  alternative = "two.sided")
+
+#In-Sample Forecast
+gbm.US_h0d3 = gbm.forecast_lag(0,3,zoo.US_lag0, "United States", train = 1.0)
 gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
-roc(gbm.US_h3d3[[2]],gbm.US_h3d3[[1]])
+gbm.US_h6d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", train = 1.0)
+gbm.US_h12d3 = gbm.forecast_lag(12,3,zoo.US_lag0, "United States", train = 1.0)
+
+
+#Out-Of-Sample Forecast
+
+
+
+
+
 
 
 
