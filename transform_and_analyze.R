@@ -321,36 +321,57 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
     return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
 }
 
-gbm.roll <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5)
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli", train = 1.0)
 {
   h = forecast
   d = lags
-  c = country
   horizon = seq(from =h+1, to = h+d)
   #Lag h+1,h+2,...,h+d  
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
   #Need to get Recession Information because not included in Lags
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   
-  #Create GBM Model using ALL data with 50% as train
-  gbm.C = gbm(REC_lagRESULT ~ . ,
-              data = zoo.C_lagRESULT,
-              distribution = distr,
-              shrinkage = 0.01, 
-              bag.fraction = 0, 
-              train.fraction = 1.0, 
-              n.trees = 2000)
-  
-  #best.iter_test = gbm.perf(gbm.C, method="test"))
-  best.iter_cv = gbm.perf(gbm.C, method="cv")
-  
-  print(best.iter_cv)
-  #summary(gbm.C,n.trees=best.iter_test)
-  print(summary(gbm.C,n.trees=best.iter_cv))
-  
-  #head(summary(gbm.US_h12d4,n.trees=best.iter_h12d4_cv), n = 15)
-  
-  #Predict in Sample
+  #Moving Window
+  window = 180
+  iterations = 10 #(nrow(zoo.C_lag0)-window-h)
+  pred_final = vector("numeric", length(1:iterations))
+  ptm <- proc.time()
+  for(i in 1:iterations)
+  {
+    #Get zoo from 1 to 180, then 2 to 182
+    value  <- sum(i,window)
+    forward <- sum(-1,-h)
+    zoo.C =  zoo.C_lagRESULT[i:value,]
+    REC = REC_lagRESULT[i:value,]
+    #Create GBM Model using ALL data with 50% as train
+    #gbm.C = gbm(REC ~ . ,
+    #            data = zoo.C,
+    #            distribution = distr,
+    #            shrinkage = 0.01, 
+    #            bag.fraction = 0, 
+    #            train.fraction = 1.0, 
+    #            n.trees = 2000)
+    
+    gbm.C = gbm(REC_lagRESULT ~ . ,
+                data = zoo.C_lagRESULT,
+                distribution = distr,
+                shrinkage = 0.01, 
+                bag.fraction = 1,
+                cv.folds = 2,
+                train.fraction = 1.0,
+                n.trees = 2000)
+    
+    best.iter_cv = gbm.perf(gbm.C, method="cv")
+    print(best.iter_cv)
+    #Forecast using LAST time to forecast NEXT h period
+    pred_final[i] =  predict(gbm.C,zoo.C_lagRESULT, 
+                             n.trees= best.iter_cv, 
+                             type="response")
+  }
+  print(proc.time() - ptm)
+  return(pred_final)
+}
+  #Predict Out-Of-Sample
   pred = predict(gbm.C,zoo.C_lagRESULT, 
                  n.trees= best.iter_cv, 
                  type="response")
@@ -368,49 +389,10 @@ gbm.roll <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", t
   #Use GG Plot here and include what is h and d
   plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
   
-  #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
-  #dev.off()
   return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
 }
 
-rollapply(zoo.US_lag0 ,width = 180, FUN = gbm.roll)
 
-
-
-mbm.forecast_lag <- function(forecast, lags, zoo.C_lag0)
-{
-  h = forecast
-  d = lags
-  horizon = seq(from =h+1, to = h+d)
-  #Lag h+1,h+2,...,h+d  
-  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
-  #Need to get Recession Information because not included in Lags
-  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
-  
-  #Create GBM Model using ALL data with 50% as train
-  mbm.C = mboost(REC_lagRESULT ~ . ,
-              data = zoo.C_lagRESULT,
-              baselearner = "bols")
-  
-  #Predict in Sample
-  pred = predict(mbm.C, zoo.C_lagRESULT, type="response")
-  
-  #Plot Prediction Against Actual Recession
-  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
-  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
-  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
-  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
-  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-  par(new=TRUE)
-  
-  #Use GG Plot here and include what is h and d
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste("United States", ": Forecast",h,"Months"), axes = TRUE)
-
-  return(list(ts.REC,ts.pred))
-}
-mbm.forecast_lag(0,3,zoo.US_lag0)
 ### Japan ###
 #Transform and Season Japan#
 zoo.JP_lag0 = transform_season_JP()
@@ -452,42 +434,40 @@ glm.predict_roc <- function(forecast, country = "US")
   return(roc(REC_h, pred.glm_C_h))
 }
 
-glm.roll <- function(zoo.C, forecast = 0)
+glm.roc_roll <- function(zoo.C, forecast = 0)
 {
   h = forecast
   window = 180
-  iterations = (nrow(zoo.C)-window)
-  print(iterations)
+  iterations = (nrow(zoo.C)-window-h)
   pred_final = vector("numeric", length(1:iterations))
   for(i in 1:iterations)
   {
     #Get zoo from 1 to 180, then 2 to 182
     value  <- sum(i,window)
+    forward <- sum(-1,-h)
     zoo.C = zoo.US_lag0[i:value,]
-    #lag.1 <- window(zoo.US_lag0$PMP, start = i, end = )
-    glm.C_h = dyn$glm(USRECD ~ lag(PMP, -1), data = zoo.C, family = "binomial")
-    #Forecast using LAST time to forecast NEXT period
+    glm.C_h = dyn$glm(USRECD ~ lag(SFYGT10, forward), data = zoo.C, family = "binomial")
+    #Forecast using LAST time to forecast NEXT h period
     pred_final[i] = (predict.glm(glm.C_h, newdata = zoo.US_lag0[value,], type = "response"))
   }
-  return(pred_final)
+  ts.glm_OS = ts(pred_final, end=c(2014,9), freq = 12)
+  start_month = start(ts.glm_OS)[2]
+  start_year = start(ts.glm_OS)[1]
+  USRECD_OS = window(zoo.US_lag0$USRECD, start=(as.Date(paste(start_year,start_month,1, sep="-"))),freq = 12)
+  return(roc(USRECD_OS, ts.glm_OS))
 }
 
 
-#Logit: H = 0
-
 #In-Sample
+
+#Logit: H = 0
 glm.US_h0 = dyn$glm(USRECD ~ lag(PMP, -1), data = zoo.US_lag0, family = "binomial")
 pred.glm.US_h0 = predict(glm.US_h0d0, data.frame = zoo.US_lag0, type = "response")
 USRECD1 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0d0), end = end(pred.glm.US_h0d0))
 roc(USRECD1, pred.glm.US_h0)
 
-#Out-Sample
-pred.glm.US_h0_OS = glm.roll(zoo.US_lag0)
-
-
-
 #Logit: H = 3
-glm.US_h3 = dyn$glm(USRECD ~ lag(SFYGT1, -1+-3), data = zoo.US_lag0, family = "binomial")
+glm.US_h3 = dyn$glm(USRECD ~ lag(PMNO, -1+-3), data = zoo.US_lag0, family = "binomial")
 pred.glm.US_h3 = predict(glm.US_h3, data.frame = zoo.US_lag0, type = "response")
 USRECD3 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h3), end = end(pred.glm.US_h3))
 roc(USRECD3, pred.glm.US_h3)
@@ -504,6 +484,19 @@ pred.glm.US_h12 = predict(glm.US_h12, data.frame = zoo.US_lag0$USRECD, type = "r
 USRECD12 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h12), end = end(pred.glm.US_h12))
 roc(USRECD12, pred.glm.US_h12)
 
+### Out-Of-Sample ###
+
+#Logit: H = 0
+roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 0)
+
+#Logit: H = 3 
+roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 3)
+
+#Logit: H = 6
+roc.glm.US_h6_OS = glm.roc_roll(zoo.US_lag0, forecast = 6)
+
+#Logit: H = 12
+roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12)
 
 #GW Test
 USRECD3 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0d0), end = end(pred.glm.US_h0d0))
@@ -534,13 +527,55 @@ gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
 gbm.US_h6d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", train = 1.0)
 gbm.US_h12d3 = gbm.forecast_lag(12,3,zoo.US_lag0, "United States", train = 1.0)
 
-
 #Out-Of-Sample Forecast
 
 
+### Look at Japan Raw ###
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$NEWJOB, col = "blue", axes = TRUE)
+
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$CONCONF, col = "blue", axes = TRUE)
+
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$INTSPREAD, col = "blue", axes = TRUE, xlab = "Year", ylab = "Interest Rate Spread", main = "Japan Raw Data 1978-2014" )
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$IBORATE, col = "blue", axes = TRUE, xlab = "Year", ylab = "Interbank Lending Rate (3 months)", main = "Japan Raw Data 1978-2014" )
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$STOCKPRIC, col = "blue", axes = TRUE)
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$JQI.J, col = "blue", axes = TRUE)
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$BCSTNDNSJ, col = "blue", axes = TRUE)
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$M1J, col = "blue", axes = TRUE)
+
+
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$IPIRFG, col = "blue", axes = TRUE)
 
 
 
+plot(zoo.JP$JAPRECD, col = "red", axes = FALSE, ann = FALSE)
+par(new=TRUE)
+plot(zoo.JP$CONCONF, col = "blue", axes = TRUE)
 
 
 
