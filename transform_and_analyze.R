@@ -338,9 +338,10 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli"
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   #Moving Window
   window = 180
-  iterations = 2 #(nrow(zoo.C_lag0)-window-h)
+  iterations = 10 #(nrow(zoo.C_lag0)-window-h)
   #Create prediction vector
-  pred_final = vector("numeric", length(1:iterations))
+  pred_final = vector("numeric")
+  cv_score = vector("numeric")
   #Time
   ptm <- proc.time()
   #Store average relative importance
@@ -353,8 +354,8 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli"
     zoo.C =  zoo.C_lagRESULT[i:value,]
     REC = REC_lagRESULT[i:value,]
 
-    gbm.C = gbm(REC_lagRESULT ~ . ,
-                data = zoo.C_lagRESULT,
+    gbm.C = gbm(REC ~ . ,
+                data = zoo.C,
                 distribution = distr,
                 shrinkage = 0.01, 
                 bag.fraction = 1,
@@ -363,29 +364,33 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli"
                 n.trees = 2000)
     sum_gbm.C = summary(gbm.C)
     best.iter_cv = gbm.perf(gbm.C, method="cv")
-    print(best.iter_cv)
+    cv_score[i] = best.iter_cv
     #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  predict(gbm.C,zoo.C_lagRESULT, 
+    pred_final[i] =  predict(gbm.C,
+                             zoo.C_lagRESULT[value,], 
                              n.trees= best.iter_cv, 
                              type="response")
 
-    if(df.store == 0)
+    if(length(df.store) == 0)
     {
     df.store = data.frame(sum_gbm.C[order(sum_gbm.C[[1]]),1],sum_gbm.C[order(sum_gbm.C[[1]]),2], 0)
     }
     else
     {
+    #Add I_j^2 value
     df.store[,2] = df.store[,2] + sum_gbm.C[order(sum_gbm.C[[1]]),2]
+    #Add to get frequency of each I_j^2
     df.store[,3] = df.store[,3] + as.numeric(sum_gbm.C[order(sum_gbm.C[[1]]),2]>0)
     }
   }
   print(proc.time() - ptm)
-  return(list(pred_final,df.store,best.iter_cv))
+  df.store[,2] = df.store[,2]/iterations
+  return(list(pred_final,df.store,cv_score))
 }
-  #Predict Out-Of-Sample
-  pred = predict(gbm.C,zoo.C_lagRESULT, 
-                 n.trees= best.iter_cv, 
-                 type="response")
+
+gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
+gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0)
+
   
   #Plot Prediction Against Actual Recession
   begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
@@ -428,6 +433,8 @@ glm.predict_roc <- function(forecast, country = "US")
   return(roc(REC_h, pred.glm_C_h))
 }
 
+
+##Rolling Forecast Logit
 glm.roc_roll <- function(zoo.C, forecast = 0)
 {
   h = forecast
