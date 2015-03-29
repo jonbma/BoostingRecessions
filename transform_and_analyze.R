@@ -287,7 +287,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
                       bag.fraction = 0.5, 
                       train.fraction = train, 
                       cv.folds = 2, 
-                      n.trees = 2000)
+                      n.trees = 400)
   
   #best.iter_test = gbm.perf(gbm.C, method="test"))
   best.iter_cv = gbm.perf(gbm.C, method="cv")
@@ -316,21 +316,25 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   #Use GG Plot here and include what is h and d
   plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
   
+  #Calculate ROC score
+  auc_gbm = roc(ts.REC,ts.pred)[9]
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
   #return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
-  return(summary(gbm.C))
+  return(list(summary(gbm.C),best.iter_cv,auc_gbm,ts.pred))
 }
 
 #Rolling Estimate of GBM
 """
-Problem is its TOO slow, do I manually pick M?
-Also I should gather info about average importance
+1. Get rid of subscript out of bounds error
+2. Include in way to count number of iterations
+3. Include way to save data for every 50 iterations
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli", train = 1.0)
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", distr = "bernoulli", train = 1.0)
 {
   h = forecast
   d = lags
+  c = country
   horizon = seq(from =h+1, to = h+d)
   #Lag h+1,h+2,...,h+d  
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
@@ -338,39 +342,58 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli"
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   #Moving Window
   window = 180
-  iterations = 10 #(nrow(zoo.C_lag0)-window-h)
+  iterations = 11 #(nrow(zoo.C_lagRESULT)-window-h - 1)
   #Create prediction vector
   pred_final = vector("numeric")
-  cv_score = vector("numeric")
+  #Create CV score vector
+  #cv_score = vector("numeric")
+  
   #Time
   ptm <- proc.time()
-  #Store average relative importance
-  #Store frequency of variable
+
+  #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
   for(i in 1:iterations)
   {
-    #Get zoo from 1 to 180, then 2 to 182
-    value  <- sum(i,window)
-    forward <- sum(-1,-h)
-    zoo.C =  zoo.C_lagRESULT[i:value,]
-    REC = REC_lagRESULT[i:value,]
+    #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to iterations + window so like 10 to 190
+    shift  <- sum(i,window)
+    #I never use forward
+    #forward <- sum(-1,-h)
+    zoo.C_shift =  zoo.C_lagRESULT[i:shift,]
+    REC_shift = REC_lagRESULT[i:shift,]
 
-    gbm.C = gbm(REC ~ . ,
-                data = zoo.C,
+#     gbm.C = gbm(REC_shift ~ . ,
+#                 data = zoo.C_shift,
+#                 distribution = distr,
+#                 shrinkage = 0.01, 
+#                 bag.fraction = 1,
+#                 cv.folds = 2,
+#                 train.fraction = 1.0,
+#                 n.trees = 400)
+    
+    
+    gbm.C = gbm.fit(x = zoo.C_shift,
+                y = REC_shift,
                 distribution = distr,
                 shrinkage = 0.01, 
                 bag.fraction = 1,
-                cv.folds = 2,
-                train.fraction = 1.0,
-                n.trees = 2000)
-    sum_gbm.C = summary(gbm.C)
-    best.iter_cv = gbm.perf(gbm.C, method="cv")
-    cv_score[i] = best.iter_cv
+                n.trees = 400,
+                verbose = FALSE)
+    
+    
+    #Get the summary of GBM model
+    sum_gbm.C = summary(gbm.C, plotit= FALSE)
+    #Print best iteration and store
+    #best.iter_cv = gbm.perf(gbm.C, method="cv", plot.it = FALSE)
+    #cv_score[i] = best.iter_cv
     #Forecast using LAST time to forecast NEXT h period
+    
+    next_predict = sum(shift,h,1)
     pred_final[i] =  predict(gbm.C,
-                             zoo.C_lagRESULT[value,], 
-                             n.trees= best.iter_cv, 
-                             type="response")
-
+                            zoo.C_lagRESULT[next_predict,], 
+                            n.trees= 400, 
+                            type="response")
+    #pred_final[i] = 0
+    
     if(length(df.store) == 0)
     {
     df.store = data.frame(sum_gbm.C[order(sum_gbm.C[[1]]),1],sum_gbm.C[order(sum_gbm.C[[1]]),2], 0)
@@ -382,33 +405,60 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, distr = "bernoulli"
     #Add to get frequency of each I_j^2
     df.store[,3] = df.store[,3] + as.numeric(sum_gbm.C[order(sum_gbm.C[[1]]),2]>0)
     }
+    
+    if(i %% 5 == 0)
+    {
+      cat(i)
+      setwd("~/Google Drive/Independent Work/Code")
+      save(pred_final, file = "save_pred.RData")
+      #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",iterations,"_.RData",sep=""))
+    }
   }
-  print(proc.time() - ptm)
-  df.store[,2] = df.store[,2]/iterations
-  return(list(pred_final,df.store,cv_score))
-}
-
-gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
-gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0)
-
+  #Print how long it took for ALL the iterations
+  time_spent = proc.time() - ptm
   
-  #Plot Prediction Against Actual Recession
-  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
-  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
-  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
-  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
-  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  #Take average of I_j^2 value
+  df.store[,2] = df.store[,2]/iterations
+  
+  #Return the frequency and average score from highest to lowest
+  df.store = df.store[order(gbm.US_h3d3_roll[[2]][2], decreasing = TRUE),]
+  
+  #Plot from first iteration to last iteration
+  begin_window = sum(1,window,h,1)
+  end_window = sum(window,h,iterations,1) #In case where iterations = nrow of zoo.C_lagresult, end window should just be nrows
+  begin_month = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%m"))
+  begin_year = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%Y"))
+  end_month = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%m"))
+  end_year = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%Y"))
+  ts.REC = ts(REC_lagRESULT[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  
-  #Use GG Plot here and include what is h and d
   plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  setwd("~/Google Drive/Independent Work/Writing/Graphs")
+  dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",iterations,"_.png", sep = ""))
+  dev.off()
   
-  #return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
-  return(summary(gbm.C))
+  #Return Prediction, Final Score, CV,Score and Ideally ROC
+  return(list(ts.REC,
+              ts.pred,
+              roc(ts.REC,ts.pred),
+              df.store,
+              #cv_score,
+              time_spent))
 }
 
+
+gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0)
+gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0)
+gbm.US_h6d3_roll = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0)
+gbm.US_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0)
+
+#Recover
+load("~/Google Drive/Independent Work/Code/save_pred.RData")
+head(pred_final)
+ 
 
 ######   Logit Models  #######
 
@@ -518,7 +568,12 @@ roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12)
 gbm.US_h0d3 = gbm.forecast_lag(0,3,zoo.US_lag0, "United States", train = 1.0)
 gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
 gbm.US_h6d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", train = 1.0)
-gbm.US_h12d3 = gbm.forecast_lag(12,3,zoo.US_lag0, "United States", train = 1.0)
+gbm.US_h12d4= gbm.forecast_lag(forecast = 12,lags = 4,zoo.US_lag0, "United States", train = 1.0)
+
+#Get ROC
+
+col = 1
+print(list(gbm.US_h0d3[[col]], gbm.US_h3d3[[col]], gbm.US_h6d3[[col]], gbm.US_h12d4[[col]]))
 
 #Out-Of-Sample Forecast
 
