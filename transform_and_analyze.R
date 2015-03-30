@@ -268,7 +268,7 @@ transform_season_JP <- function()
 ######## Apply Gradient Boosting ########
 
 #Use GBM to forecast h months with d lags
-gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5)
+gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "bernoulli", train = 0.5, m = 400, iter = 0)
 {
   h = forecast
   d = lags
@@ -286,11 +286,18 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
                       shrinkage = 0.01, 
                       bag.fraction = 0.5, 
                       train.fraction = train, 
-                      cv.folds = 2, 
+                      cv.folds = 10, 
                       n.trees = 400)
   
   #best.iter_test = gbm.perf(gbm.C, method="test"))
+  if (iter == 0)
+  {
   best.iter_cv = gbm.perf(gbm.C, method="cv")
+  }
+  else
+  {
+    best.iter_cv = iter
+  }
   
   print(best.iter_cv)
   #summary(gbm.C,n.trees=best.iter_test)
@@ -327,14 +334,16 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 #Rolling Estimate of GBM
 """
 1. Get rid of subscript out of bounds error
-2. Include in way to count number of iterations
-3. Include way to save data for every 50 iterations
+2. figure out why h3,h6,12 aren't able to get roc score...something is wrong
+4. include lags?
+5. 
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", distr = "bernoulli", train = 1.0)
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", distr = "bernoulli", train = 1.0, iter.full = TRUE, iter = 0)
 {
   h = forecast
   d = lags
   c = country
+  
   horizon = seq(from =h+1, to = h+d)
   #Lag h+1,h+2,...,h+d  
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
@@ -342,11 +351,26 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", dis
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   #Moving Window
   window = 180
-  iterations = 11 #(nrow(zoo.C_lagRESULT)-window-h - 1)
+  if(iter.full == TRUE)
+  {
+  iterations = (nrow(zoo.C_lagRESULT)-window-h - 1)
+  }
+  else
+  {
+    iterations = iter
+  }
+  
   #Create prediction vector
   pred_final = vector("numeric")
-  #Create CV score vector
-  #cv_score = vector("numeric")
+  
+  #Create store for average and frequency count of variables selected
+  df.store = data.frame()
+  
+  #Create positive prediction 
+  pos_var = vector("integer")
+  pos_uniq = vector("integer")
+  
+  
   
   #Time
   ptm <- proc.time()
@@ -382,31 +406,36 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", dis
     
     #Get the summary of GBM model
     sum_gbm.C = summary(gbm.C, plotit= FALSE)
+
     #Print best iteration and store
-    #best.iter_cv = gbm.perf(gbm.C, method="cv", plot.it = FALSE)
     #cv_score[i] = best.iter_cv
     #Forecast using LAST time to forecast NEXT h period
-    
     next_predict = sum(shift,h,1)
     pred_final[i] =  predict(gbm.C,
                             zoo.C_lagRESULT[next_predict,], 
                             n.trees= 400, 
                             type="response")
-    #pred_final[i] = 0
+#     pred_final[i] = 0
+
+    #Store number of positive variables
+    pos_var[i] = sum(as.numeric(sum_gbm.C[2] >0))
     
+    #Update average and frequency    
     if(length(df.store) == 0)
     {
-    df.store = data.frame(sum_gbm.C[order(sum_gbm.C[[1]]),1],sum_gbm.C[order(sum_gbm.C[[1]]),2], 0)
+    df.store = data.frame(NAME = sum_gbm.C[order(sum_gbm.C[[1]]),1], AVG = 0, FREQ = 0)
+    rownames(df.store) = df.store$NAME
     }
-    else
+    if(length(df.store) > 0)
     {
+    order_var = order(sum_gbm.C[[1]])
     #Add I_j^2 value
-    df.store[,2] = df.store[,2] + sum_gbm.C[order(sum_gbm.C[[1]]),2]
+    df.store[,2] <- df.store[,2] + sum_gbm.C[order_var,2]
     #Add to get frequency of each I_j^2
-    df.store[,3] = df.store[,3] + as.numeric(sum_gbm.C[order(sum_gbm.C[[1]]),2]>0)
+    df.store[,3] <- df.store[,3] + as.numeric(sum_gbm.C[order_var,2]>0)
     }
     
-    if(i %% 5 == 0)
+    if(i %% 10 == 0)
     {
       cat(i)
       setwd("~/Google Drive/Independent Work/Code")
@@ -419,20 +448,23 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", dis
   
   #Take average of I_j^2 value
   df.store[,2] = df.store[,2]/iterations
-  
-  #Return the frequency and average score from highest to lowest
-  df.store = df.store[order(gbm.US_h3d3_roll[[2]][2], decreasing = TRUE),]
+  df.store[,3] = df.store[,3]/iterations
+
+  #Return the average score from highest to lowest
+  df.store = df.store[order(df.store[,2], decreasing = TRUE),]
   
   #Plot from first iteration to last iteration
   begin_window = sum(1,window,h,1)
-  end_window = sum(window,h,iterations,1) #In case where iterations = nrow of zoo.C_lagresult, end window should just be nrows
+  end_window = sum(begin_window, iterations, -1) #In case where iterations = nrow of zoo.C_lagresult, end window should just be nrows
   begin_month = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%m"))
   begin_year = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%Y"))
   end_month = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%m"))
   end_year = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%Y"))
   ts.REC = ts(REC_lagRESULT[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
   ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
-  
+  ts.pos = ts(pos_var, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+
+  #Plot Prediction Against ACTUAL Recession
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
   plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
@@ -445,15 +477,22 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country = "US", dis
               ts.pred,
               roc(ts.REC,ts.pred),
               df.store,
+              ts.pos,
               #cv_score,
               time_spent))
 }
 
+gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, iter.full = FALSE, iter = 10)
+gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, iter.full = FALSE, iter = 20)
+gbm.US_h6d3_roll = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, iter.full = FALSE, iter = 80)
+gbm.US_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, iter.full = FALSE, iter = 50)
 
-gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0)
-gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0)
-gbm.US_h6d3_roll = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0)
-gbm.US_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0)
+
+gbm.US_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, iter.full = TRUE)
+gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, iter.full = TRUE)
+gbm.US_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, iter.full = TRUE)
+gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, iter.full = TRUE)
+
 
 #Recover
 load("~/Google Drive/Independent Work/Code/save_pred.RData")
@@ -462,25 +501,23 @@ head(pred_final)
 
 ######   Logit Models  #######
 
-glm.predict_roc <- function(forecast, country = "US")
+glm.predict_roc <- function(zoo.C_lag0, forecast, country)
 {
   h = forecast
   if(country == "US")
   {
-  REC = "USRECD"
-  zoo.C = zoo.US_lag0
-  glm.C_h = dyn$glm(REC ~ lag(variable, -1-h), data = zoo.C, family = "binomial")
-  #Predict Logit onto data
-  pred.glm_C_h = predict(glm.C_h, data.frame = zoo.C$REC, type = "response")
-  #Line Up recession and prediction for ROC
-  REC_h = window(zoo.C$REC, start = start(pred.glm_C_h), end = end(pred.glm_C_h))       
+    glm.C_h = dyn$glm(USRECD ~ lag(PMP, sum(-1,-h)), data = zoo.C_lag0, family = "binomial")
+    pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
+    RECD = window(zoo.C_lag0$USRECD, start = start(pred.glm.C_h), end = end(pred.glm.C_h))
+    return(roc(RECD, pred.glm.C_h))
   }
-  else
+  else if(country == "JP")
   {
-    print("Need to update for Japan and UK")
+    glm.C_h = dyn$glm(JAPRECD ~ lag(JPNTI0015, sum(-1,-h)), data = zoo.C_lag0, family = "binomial")
+    pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
+    RECD = window(zoo.C_lag0$JAPRECD, start = start(pred.glm.C_h), end = end(pred.glm.C_h))
+    return(roc(RECD, pred.glm.C_h))
   }
-  
-  return(roc(REC_h, pred.glm_C_h))
 }
 
 
@@ -517,12 +554,31 @@ glm.roc_roll <- function(zoo.C, forecast = 0)
 #Transform and Season Japan#
 zoo.JP_lag0 = transform_season_JP()
 
-#Apply Boosting to Japan
-gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
-gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
-gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
-gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, ROCS = TRUE) 
-print(list(gbm.JP_h0d3, gbm.JP_h3d3, gbm.JP_h6d3, gbm.JP_h12d4))
+##In-Sample##
+
+#GLM
+#Logit: H = 0
+glm.JP_h0d0 = glm.predict_roc(zoo.JP_lag0, forecast = 0, country = "JP")
+
+#Logit: H = 3
+glm.JP_h3d3 = glm.predict_roc(zoo.JP_lag0, forecast = 3, country = "JP")
+
+#Logit: H = 6
+glm.JP_h6d3 = glm.predict_roc(zoo.JP_lag0, forecast = 6, country = "JP")
+
+#Logit: H = 12
+glm.JP_h12d4 = glm.predict_roc(zoo.JP_lag0, forecast = 12, country = "JP")
+
+#Boosting
+gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
+gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
+gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
+gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, iter = 27) 
+
+index = 2
+print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4[index]))
+##Out-Sample##
+
 
 ########## United States #########
 
@@ -534,8 +590,8 @@ zoo.US_lag0G = transform_season_US(df.US, 'G')
 ### In-Sample ####
 #Logit: H = 0
 glm.US_h0 = dyn$glm(USRECD ~ lag(PMP, -1), data = zoo.US_lag0, family = "binomial")
-pred.glm.US_h0 = predict(glm.US_h0d0, data.frame = zoo.US_lag0, type = "response")
-USRECD1 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0d0), end = end(pred.glm.US_h0d0))
+pred.glm.US_h0 = predict(glm.US_h0, data.frame = zoo.US_lag0, type = "response")
+USRECD1 = window(zoo.US_lag0$USRECD, start = start(pred.glm.US_h0), end = end(pred.glm.US_h0))
 roc(USRECD1, pred.glm.US_h0)
 #Logit: H = 3
 glm.US_h3 = dyn$glm(USRECD ~ lag(PMNO, -1+-3), data = zoo.US_lag0, family = "binomial")
