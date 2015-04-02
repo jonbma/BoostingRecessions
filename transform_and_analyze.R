@@ -76,9 +76,10 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
 transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
   strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
-                    skip=9,                # skip the first 8
+                    skip=0,                # skip the first 8
                     stringsAsFactors=FALSE
   )
   
@@ -340,7 +341,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 0, m = 400)
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 0, m = 400, wind = 180, steps = 0.01)
 {
   h = forecast
   d = lags
@@ -360,20 +361,19 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
   #Need to get Recession Information because not included in Lags
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   #Moving Window Size
-  window = 180
+  window = wind
   
   #Setting Number of run (Not to be confused with M trees)
-  if(run.full == TRUE)
-  {
-  run = (nrow(zoo.C_lagRESULT)-window-h - 1)
-  }
-  else
-  {
+  if(run.full == TRUE){
+      run = (nrow(zoo.C_lagRESULT)-window-h - 1)
+    }
+  else{
     run = runs
   }
   
   #Create prediction vector
   pred_final = vector("numeric")
+  #cv_score = vector("integer")
   
   #Create store for average and frequency count of variables selected
   df.store = data.frame()
@@ -398,17 +398,17 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
 #     gbm.C = gbm(REC_shift ~ . ,
 #                 data = zoo.C_shift,
 #                 distribution = distr,
-#                 shrinkage = 0.01, 
+#                 shrinkage = steps, 
 #                 bag.fraction = 1,
-#                 cv.folds = 2,
+#                 cv.folds = 5,
 #                 train.fraction = 1.0,
-#                 n.trees = 400)
+#                 n.trees = m)
     
     
     gbm.C = gbm.fit(x = zoo.C_shift,
                 y = REC_shift,
                 distribution = distr,
-                shrinkage = 0.01, 
+                shrinkage = steps, 
                 bag.fraction = 1,
                 n.trees = m,
                 verbose = FALSE)
@@ -418,7 +418,9 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
     sum_gbm.C = summary(gbm.C, plotit= FALSE)
 
     #Print best iteration and store
+    #best.iter_cv = gbm.perf(gbm.C, method="cv")
     #cv_score[i] = best.iter_cv
+    cv_score = m
     #Forecast using LAST time to forecast NEXT h period
     next_predict = sum(shift,h,1)
     pred_final[i] =  predict(gbm.C,
@@ -488,7 +490,7 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
               roc(ts.REC,ts.pred),
               df.store,
               ts.pos,
-              #cv_score,
+              cv_score,
               time_spent))
 }
 
@@ -517,11 +519,11 @@ glm.predict_roc <- function(zoo.C_lag0, forecast, country)
 
 
 ##Rolling Forecast Logit
-glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country)
+glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
 {
   h = forecast
   c = country
-  window = 100
+  window = wind
   #run = (nrow(zoo.C)-window-h)
   run = (nrow(zoo.C_lag0)-window-h - 1)
   pred_final = vector("numeric")
@@ -531,7 +533,18 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country)
     shift  <- sum(i,window)
     forward <- sum(-1,-h)
     zoo.C_shift = zoo.C_lag0[i:shift,]
-    glm.C = dyn$glm(JAPRECD ~ lag(OPTA, forward), data = zoo.C_shift, family = "binomial")
+    if(country == "US")
+    {
+    glm.C = dyn$glm(USRECD ~ lag(SFYGT10, forward), data = zoo.C_shift, family = "binomial")
+    }
+    else if(country == "JP")
+    {
+      glm.C = dyn$glm(JAPRECD ~ lag(OPTA, forward), data = zoo.C_shift, family = "binomial")
+    }
+    else
+    {
+      print("Uh oh, no country specified or incorrect spelling")
+    }
     #Forecast using LAST time to forecast NEXT h period
     pred_final[i] =  predict.glm(
                              glm.C,
@@ -544,7 +557,12 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country)
   begin_year = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%Y"))
   end_month = as.numeric(format(time(zoo.C_lag0[end_window,]),"%m"))
   end_year = as.numeric(format(time(zoo.C_lag0[end_window,]),"%Y"))
-  ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  if(country == "US")
+  {ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  }
+  else if(country == "JP")
+  {ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  }
   ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)  
   
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
@@ -559,11 +577,12 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country)
 
 
 
-########## Japan ##############
+#####---------- Japan -----------------#######
+
 #Transform and Season Japan#
 zoo.JP_lag0 = transform_season_JP()
 
-##In-Sample##
+##################In-Sample############################
 
 #Logit
 glm.JP_h0d0 = glm.predict_roc(zoo.JP_lag0, forecast = 0, country = "JP")
@@ -581,7 +600,7 @@ gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 
 index = 2
 print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4[index]))
 
-##Out-Sample##
+###################Out-Sample##########################
 
 #Logit
 roc.glm.JP_h0_roll = glm.roc_roll(zoo.JP_lag0, forecast = 0, country = "JP")
@@ -606,6 +625,9 @@ gbm.JP_h3d3_roll_full2 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.f
 gbm.JP_h6d3_roll_full2 = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 400)
 gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, m = 400)
 
+gbm.JP_h3d3_roll_full361 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 361)
+
+
 #Boost with Leading Index
 CAB = c("JAPRECD","IPIRFG","IPIRFGMM","NEWJOB","NEWORD","NEWHOUSE","CONCONF","NIKKEICOM","INTSPREAD","GB10","IBORATE","STOCKPRIC","INVESTCLIM","OPTA","DISB", "JPNTI0015")
 gbm.JP_h3d0_roll_lead400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0[,CAB], run.full = TRUE, m = 400)
@@ -627,25 +649,26 @@ gbm.JP_h6d3_roll_lead399 = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0[,CAB
 
 gbm.JP_h0d0_roll_lead400 = gbm.roc_roll(forecast = 0, lags = 0, zoo.JP_lag0[,CAB], run.full = TRUE, m = 400, )
 gbm.JP_h0d3_roll_lead400 = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0[,CAB], run.full = TRUE, m = 400)
-
-
-
-
-
-
-
 gbm.JP_h3d3_roll_lead = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0[,CAB], run.full = TRUE)
 
+##Analysis ####
+
+#plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
+plot(gbm.US_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.US_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
+plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
 
-########## United States #########
+
+
+#####---------- United States -----------------#######
 
 #Transform and Season#
 zoo.US_lag0 = transform_season_US(df.US)
 zoo.US_lag0E = transform_season_US(df.US, 'E')
 zoo.US_lag0G = transform_season_US(df.US, 'G')
 
-### In-Sample ####
+############## In-Sample #####################
 #Logit
 roc.glm.US_h0d0 = glm.predict_roc(zoo.US_lag0, forecast = 0, country = "US")
 roc.glm.US_h3d3 = glm.predict_roc(zoo.US_lag0, forecast = 3, country = "US")
@@ -661,14 +684,12 @@ gbm.US_h12d4= gbm.forecast_lag(forecast = 12,lags = 4,zoo.US_lag0, "United State
 #Boost w/ no lags
 gbm.US_h3d0 = gbm.forecast_lag(3,0,zoo.US_lag0, "United States", train = 1.0)
 
-
-
-### Out-Of-Sample ###
+################## Out-Of-Sample ###################
 #Logit
 roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 0)
 roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 3)
 roc.glm.US_h6_OS = glm.roc_roll(zoo.US_lag0, forecast = 6)
-roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12)
+roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12, country = "US", wind = 180)
 
 #Boost Mini
 gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.full = FALSE, iter = 10)
@@ -681,11 +702,7 @@ gbm.US_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.fu
 gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US")
-
 gbm.US_h12d4_roll_full_100 = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US", m = 100)
-
-
-#Boost Full2 
 gbm.US_h3d3_roll_full2 = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
 
 #Boost with w/ Lags w/ Fewer Trees
@@ -698,15 +715,38 @@ gbm.US_h0d0_roll_full400 = gbm.roc_roll(forecast = 0, lags = 0, zoo.US_lag0, run
 gbm.US_h3d0_roll_full400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
 gbm.US_h6d0_roll_full400 = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
 gbm.US_h12d0_roll_full400 = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
-
-
-
-
 gbm.US_h3d0_roll_full200 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 200)
 
+#Travis Boost
+gbm.US_h12d0_roll_travis = gbm.roc_roll(forecast = 12, lags = 0, zoo.US2, run.full = TRUE, country = "US", m = 500, wind = 132)
+gbm.US_h12d0_travis = gbm.forecast_lag(forecast = 12, lags = 0, zoo.US2, country = "US", m = 400)
+
+#Boost with 1 Variable
+gbm.US_h12d3_roll_SFYGT10 = gbm.roc_roll(forecast = 12, lags = 3,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMP')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
+gbm.US_h12d0_roll_SFYGT10AAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYAAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
+gbm.US_h12d0_roll_SFYGT10BAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYBAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
+gbm.US_h12d0_roll_SFYGT10PM = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMDEL')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
+
+#Travis MBoost
+mboost_model = mboost(NBER ~ slope + level + curve,data = df.US, baselearner = "bols")
+mboost_fit(mboost_model, df.US$NBER)
+
+glmb1 = glmboost(NBER ~ . ,
+                 data = zoo.US2, 
+                 control = boost_control(mstop = 100))
+
+maic <- AIC(glmb1)
+
+glmb1 = glmboost(NBER ~ . ,data = zoo.US2)
 
 
 
+##Analysis ####
+
+#plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
+plot(gbm.US_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.US_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
+plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
 ##Misc
 
