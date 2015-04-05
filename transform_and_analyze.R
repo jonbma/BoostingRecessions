@@ -13,6 +13,7 @@ library(dyn)
 library(sandwich) #
 library(BMS)
 library(mboost)
+library(lubridate)
 setwd("~/Google Drive/Independent Work/Code")
 source("gw.test.R")
 
@@ -66,6 +67,9 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
   return(zoo.C_lag0)
 }
 
+add.months= function(date,n) seq(date, by = paste (n, "months"), length = 2)[2]
+
+
 
 ################### Read in Data and Clean ######################
 
@@ -76,7 +80,7 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
 transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
-  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
+  #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
   strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
                     skip=0,                # skip the first 8
@@ -527,15 +531,19 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
   #run = (nrow(zoo.C)-window-h)
   run = (nrow(zoo.C_lag0)-window-h - 1)
   pred_final = vector("numeric")
+  #zoo.C_lag0 = lag(zoo.C_shift[,"PMP"], forward)
+  
   for(i in 1:run)
   {
     #Get zoo from 1 to 180, then 2 to 182
     shift  <- sum(i,window)
     forward <- sum(-1,-h)
     zoo.C_shift = zoo.C_lag0[i:shift,]
+    #REC_shift = REC_lagRESULT[i:shift,]
     if(country == "US")
     {
-    glm.C = dyn$glm(USRECD ~ lag(SFYGT10, forward), data = zoo.C_shift, family = "binomial")
+    glm.C = dyn$glm(USRECD ~ lag(PMP, forward), data = zoo.C_shift, family = "binomial")
+    glm.C2 = dyn$glm(zoo.C_shift[sum(abs(forward),1):nrow(zoo.C_shift),"USRECD"] ~ lag(zoo.C_shift[,"PMP"], forward), data = zoo.C_shift, family = "binomial")
     }
     else if(country == "JP")
     {
@@ -546,12 +554,14 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
       print("Uh oh, no country specified or incorrect spelling")
     }
     #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  predict.glm(
-                             glm.C,
+    pred_final[i] =  predict.glm(glm.C2,
                              newdata = zoo.C_lag0[shift,], 
                              type="response")
+    
+    #GLM1 = 1985-04-01, 0.1812245 
+    #GLM2 = 
   }
-  begin_window = sum(1,window,h,1)
+  begin_window = sum(1,window,h,1) #Forecast out of sample h +1 months ahead
   end_window = sum(begin_window, run, -1) 
   begin_month = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%m"))
   begin_year = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%Y"))
@@ -572,6 +582,64 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
   return(roc(ts.REC, ts.pred))
 }
 
+
+glm.out_of_sample <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
+{
+  h = forecast
+  c = country
+  window = wind
+  pred_final = vector("numeric")
+  REC_lag0 = zoo.C_lag0[,"USRECD"]
+  VAR_lag0 = zoo.C_lag0[,"PMP"]
+  VAR_lagRESULT = lag(VAR_lag0, -1)
+  REC_lagRESULT = window(REC_lag0, start = start(VAR_lagRESULT), end = end(VAR_lagRESULT))
+  VAR_lagIN = window(VAR_lagRESULT, start = start(VAR_lagRESULT), end = add.months(start(VAR_lagRESULT),window))
+  REC_lagIN = window(REC_lagRESULT, start = start(VAR_lagIN), end = end(VAR_lagIN))
+  
+  zoo.C_lagTRAIN = (window(zoo.C_lag0, start = "1959-04-01", end = "1975-05-01"))
+  zoo.C_lagTEST = (window(zoo.C_lag0, start = "1959-05-01", end = "2014-09-01"))
+  
+  
+  
+  glm.C_os4 = glm(REC_lagIN ~ VAR_lagIN, family = "binomial")
+  
+  glm.C_os1 = dyn$glm(USRECD ~ lag(PMP,-1),  data = zoo.C_lagTRAIN, family = "binomial")
+  glm.C_os2 = glm(zoo.C_lagTRAIN[2:nrow(zoo.C_lagTRAIN),"USRECD"] ~ lag(zoo.C_lagTRAIN[,"PMP"],-1), data = zoo.C_lagTRAIN, family = "binomial")
+  
+  #glm.C_os2 = glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1),, family="binomial")
+  #glm.C_os3 = dyn$glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1), data = window(zoo.C_lag0, start = "1959-04-01", end = "1975-04-01"), family = "binomial")
+  
+  
+  
+  pred_final =  predict.glm(glm.C_os1,
+                              newdata = zoo.C_lagTEST,
+                              type="response")
+  
+  begin_window = sum(1,window,h,1) #Forecast out of sample h +1 months ahead
+  end_window = sum(begin_window, run, -1) 
+  begin_month = 6 #as.numeric(format(time(zoo.C_lag0[begin_window,]),"%m"))
+  begin_year = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%Y"))
+  end_month = as.numeric(format(time(zoo.C_lag0[end_window,]),"%m"))
+  end_year = as.numeric(format(time(zoo.C_lag0[end_window,]),"%Y"))
+  if(country == "US")
+  {
+    ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  }
+  else if(country == "JP")
+  {
+    ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  }
+  ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)  
+  
+  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  
+  roc(ts.REC, ts.pred)
+  
+  return(roc(ts.REC, ts.pred))
+  
+}
 #### Factor Models (If time permits) #####
 
 
@@ -686,10 +754,10 @@ gbm.US_h3d0 = gbm.forecast_lag(3,0,zoo.US_lag0, "United States", train = 1.0)
 
 ################## Out-Of-Sample ###################
 #Logit
-roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 0)
+roc.glm.US_h0_OS = glm.roc_roll(zoo.US_lag0, forecast = 0, country = "US")
 roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 3)
 roc.glm.US_h6_OS = glm.roc_roll(zoo.US_lag0, forecast = 6)
-roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12, country = "US", wind = 180)
+roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12, country = "US", wind = 312)
 
 #Boost Mini
 gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.full = FALSE, iter = 10)
