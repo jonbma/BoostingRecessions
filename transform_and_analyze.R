@@ -76,10 +76,10 @@ TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
 transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
-  #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
   strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
-                    skip=9,                # skip the first 8
+                    skip=0,                # skip the first 8
                     stringsAsFactors=FALSE
   )
   
@@ -183,45 +183,14 @@ transform_season_US <- function(df.US, rec = 'D')
   return(zoo.US_lag0)
 }
 
-
-approx_tankan_JP <- function()
-{
-  strs.tankan <- readLines("~/Google Drive/Independent Work/Data/Japan/TANKAN2.csv")
-  df.JP_TN <- read.csv(text=strs.tankan,             # read from an R object rather than a file
-                    skip=7,                # skip the first line
-                    stringsAsFactors=FALSE
-  )
-  
-  df.JP_TN_header <- read.csv(text=strs.tankan,             # read from an R object rather than a file
-                           nrows=8,                # skip the first line
-                           stringsAsFactors=FALSE,
-                           row.names = 1
-  )
-    
-  zoo.JP_TN = zooreg(df.JP_TN, start = as.yearqtr("1974-2"), frequency = 4)
-  time(zoo.JP_TN) = as.Date(time(zoo.JP_TN), format = "%y/0%q")
-  month.JP_TN = seq(as.Date("1974-02-01"), as.Date("2015-01-01"), by = "month")
-  zoo.NA_TN = zoo(NA, month.JP_TN)
-  zoo.JP_TN_ALL = merge(zoo.JP_TN, zoo.NA_TN)
-  time.JP_TN_ALL = time(zoo.JP_TN_ALL)
-  #zoo.JP_TN_ALL = zoo(num.JP_TN_ALL, month.JP_TN)
-  #zoo.JP_TN_ALL = zoo.JP_TN_ALL[,2:ncol(zoo.JP_TN_ALL)]
-  zoo.JP_TN_ALL = zoo.JP_TN_ALL[,2:sum(ncol(zoo.JP_TN_ALL),-1)]
-  num.JP_TN_ALL = apply(zoo.JP_TN_ALL, 2, as.numeric)
-  out.JP_TN_DONE = apply(num.JP_TN_ALL, 2, na.approx)
-  zoo.JP_TN_DONE = zoo(out.JP_TN_DONE, month.JP_TN)
-  
-  return(zoo.JP_TN_DONE)
-}
-
 ## Transform Japan Function ##
 transform_season_JP <- function()
 {
   
   #### Read in Data for Japan ####
-  strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL_TRUNC2.csv")
+  strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL_TRUNC.csv")
   df.JP <- read.csv(text=strs.JP,             # read from an R object rather than a file
-                    skip=10,                # skip the first line
+                    skip=9,                # skip the first line
                     stringsAsFactors=FALSE
   )
     
@@ -235,7 +204,7 @@ transform_season_JP <- function()
   df.JP = date_COUNTRY(df.JP)
   zoo.JP = zoo_COUNTRY(df.JP)
   
-  #zoo.JP = window(zoo.JP, start = "1975-01-01", end = end(zoo.JP))
+  zoo.JP = window(zoo.JP, start = "1975-01-01", end = end(zoo.JP))
   #missmap(zoo.JP, main="Japan Data - Missings Map",  col=c("yellow", "black"), legend=TRUE)
   
   zoo.JP = window(zoo.JP, start = "1978-01-01", end = end(zoo.JP))
@@ -262,14 +231,19 @@ transform_season_JP <- function()
   
   same_JP = JP_var_names(name = 0)
   level_1D_JP = JP_var_names(name = "LEVEL_1D")
+  log_0D_JP = c("JPNQH0037")
   log_1D_JP  = JP_var_names(name = "LOG_1D")
   log_2D_JP = JP_var_names(name = "LOG_2D")
   
+  log_transform <-function(zoo.C, log_0D)
+  {
+    return(log(zoo.C[,log_0D]))
+  }
   zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_1D_JP, log_2D_JP)
-  zoo.JP_lag0 = merge(zoo.JP_lag0, zoo.JP_TN_DONE)
   zoo.JP_lag0 = na.omit(zoo.JP_lag0)
   
   #missmap(zoo.JP_lag0, main="Japan Data - Missings Map",  col=c("yellow", "black"), legend=TRUE)
+  
   
   #Compare Original and Transformed
   ncol(zoo.JP_lag0) #Have duplicates, also check for NaN
@@ -545,7 +519,7 @@ glm.predict_roc <- function(zoo.C_lag0, forecast, country)
 
 
 ##Rolling Forecast Logit
-glm.roc_roll <- function(zoo.C_lag0, variable, forecast = 0, country, wind = 180)
+glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
 {
   h = forecast
   c = country
@@ -555,26 +529,27 @@ glm.roc_roll <- function(zoo.C_lag0, variable, forecast = 0, country, wind = 180
   pred_final = vector("numeric")
   for(i in 1:run)
   {
-    #print(i)
     #Get zoo from 1 to 180, then 2 to 182
     shift  <- sum(i,window)
     forward <- sum(-1,-h)
-    zoo.C_shift = zoo.C_lag0[i:shift,c("JAPRECD",variable)]
+    zoo.C_shift = zoo.C_lag0[i:shift,]
     if(country == "US")
     {
-    glm.C = dyn$glm(zoo.C_shift[,"USRECD"] ~ lag(zoo.C_shift[,variable], forward), data = zoo.C_shift, family = "binomial")
+    glm.C = dyn$glm(USRECD ~ lag(SFYGT10, forward), data = zoo.C_shift, family = "binomial")
     }
     else if(country == "JP")
     {
-      glm.C = dyn$glm(zoo.C_shift[,"JAPRECD"] ~ lag(zoo.C_shift[,variable], forward), family = "binomial")
+      glm.C = dyn$glm(JAPRECD ~ lag(OPTA, forward), data = zoo.C_shift, family = "binomial")
     }
     else
     {
       print("Uh oh, no country specified or incorrect spelling")
     }
     #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  last(predict(glm.C, zoo.C_lag0[shift,variable], type="response"))
-    #predict(glm.C, zoo.C_shift[shift,variable], type="response")
+    pred_final[i] =  predict.glm(
+                             glm.C,
+                             newdata = zoo.C_lag0[shift,], 
+                             type="response")
   }
   begin_window = sum(1,window,h,1)
   end_window = sum(begin_window, run, -1) 
@@ -620,7 +595,7 @@ glm.JP_h12d4 = glm.predict_roc(zoo.JP_lag0, forecast = 12, country = "JP")
 gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
 gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
 gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
-gbm.JP_h12d4 = gbm.forecast_lag(12,0,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, iter.cv = TRUE) 
+gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, iter = 27) 
 
 index = 2
 print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4[index]))
@@ -628,12 +603,10 @@ print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4
 ###################Out-Sample##########################
 
 #Logit
-roc.glm.JP_h0_roll = glm.roc_roll(zoo.JP_lag0, variable = "OPTA", forecast = 0, country = "JP")
-roc.glm.JP_h0_roll = glm.roc_roll(zoo.JP_lag0, variable = "JPNTK0199", forecast = 0, country = "JP")
-
-roc.glm.JP_h3_roll = glm.roc_roll(zoo.JP_lag0, forecast = 3, variable = "OPTA", country = "JP")
-roc.glm.JP_h6_roll = glm.roc_roll(zoo.JP_lag0, forecast = 6, variable = "OPTA", country = "JP")
-roc.glm.JP_h12_roll = glm.roc_roll(zoo.JP_lag0, variable = "OPTA", forecast = 12, country = "JP")
+roc.glm.JP_h0_roll = glm.roc_roll(zoo.JP_lag0, forecast = 0, country = "JP")
+roc.glm.JP_h3_roll = glm.roc_roll(zoo.JP_lag0, forecast = 3, country = "JP")
+roc.glm.JP_h6_roll = glm.roc_roll(zoo.JP_lag0, forecast = 6, country = "JP")
+roc.glm.JP_h12_roll = glm.roc_roll(zoo.JP_lag0, forecast = 12, country = "JP")
 
 #Boost Mini
 gbm.JP_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = FALSE, iter = 10)
@@ -650,7 +623,7 @@ gbm.JP_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.
 gbm.JP_h0d3_roll_full2 = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = TRUE)
 gbm.JP_h3d3_roll_full2 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 400)
 gbm.JP_h6d3_roll_full2 = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 400)
-gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, m = 400, country = "JP")
+gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, m = 400)
 
 gbm.JP_h3d3_roll_full361 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 361)
 
@@ -681,9 +654,9 @@ gbm.JP_h3d3_roll_lead = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0[,CAB], 
 ##Analysis ####
 
 #plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
-plot(gbm.JP_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
-plot(gbm.JP_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
-plot(gbm.JP_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
+plot(gbm.US_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.US_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
+plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
 
 
@@ -713,9 +686,9 @@ gbm.US_h3d0 = gbm.forecast_lag(3,0,zoo.US_lag0, "United States", train = 1.0)
 
 ################## Out-Of-Sample ###################
 #Logit
-roc.glm.US_h0_OS = glm.roc_roll(zoo.C_lag0 = zoo.US_lag0, forecast = 0, variable = "PMP", country ="US")
+roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 0)
 roc.glm.US_h3_OS = glm.roc_roll(zoo.US_lag0, forecast = 3)
-roc.glm.US_h6_OS = glm.roc_roll(zoo.US_lag0, forecast = 6, country ="US")
+roc.glm.US_h6_OS = glm.roc_roll(zoo.US_lag0, forecast = 6)
 roc.glm.US_h12_OS = glm.roc_roll(zoo.US_lag0, forecast = 12, country = "US", wind = 180)
 
 #Boost Mini
@@ -753,17 +726,6 @@ gbm.US_h12d3_roll_SFYGT10 = gbm.roc_roll(forecast = 12, lags = 3,  zoo.US_lag0[,
 gbm.US_h12d0_roll_SFYGT10AAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYAAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
 gbm.US_h12d0_roll_SFYGT10BAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYBAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
 gbm.US_h12d0_roll_SFYGT10PM = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMDEL')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
-
-gbm.US_h12d0_roll_SFYGT10PM = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMDEL')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
-gbm.US_h12d0_roll_5and1 = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT5', 'SFYGT1', 'SFYGT10')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
-
-
-gbm.US_h6d0_roll_5and1 = gbm.roc_roll(forecast = 6, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT5', 'SFYGT1')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
-
-gbm.US_h0d0_roll_PMandUH = gbm.roc_roll(forecast = 0, lags = 0,  zoo.US_lag0[,c('USRECD','PMP', 'LHUR')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.01)
-
-gbm.US_h3d0_roll_3andSP = gbm.roc_roll(forecast = 3, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGM3', 'FSPCOM')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.01)
-
 
 #Travis MBoost
 mboost_model = mboost(NBER ~ slope + level + curve,data = df.US, baselearner = "bols")
