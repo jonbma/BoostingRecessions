@@ -1,3 +1,12 @@
+"""
+Fix Up Code Priority
+-Fix GLM and make sure I'm getting same exact value as literature
+-Why is GBM getting a value <0.5? I must be calculating it incorrectly
+-Add in to data of US_ALL_TRUNCV which to keep as level, which to keep log, etc. Right now I need to manually change :(
+-Moduralize the code for roc and roll...I'm printing out the graphs and calculating ROC curve same each time
+-Get statistic for AUROC?
+"""
+
 #Set workdirectory
 setwd("~/Google Drive/Independent Work")
 
@@ -81,9 +90,9 @@ transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
-  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC_TERM.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
-                    skip=0,                # skip the first 8
+                    skip=9,                # skip the first 8
                     stringsAsFactors=FALSE
   )
   
@@ -147,7 +156,7 @@ transform_season_US <- function(df.US, rec = 'D')
   zoo.US_fix = zoo.US[,c("USRECD","YPR")]
   
   #Keep As Level 
-  levels = c("PMP","CES151","A0M001","PMEMP","PMI","PMNO","PMDEL","PMNV","FCLBMC","PMCP", "SCP90F",  "SFYGM3",  "SFYGM6",	"SFYGT1",	"SFYGT5",	"SFYGT10",	"SFYAAAC",	"SFYBAAC")
+  levels = c("PMP","CES151","A0M001","PMEMP","PMI","PMNO","PMDEL","PMNV","FCLBMC","PMCP", "SCP90F",  "SFYGM3",  "SFYGM6",	"SFYGT1",	"SFYGT5",	"SFYGT10",	"SFYAAAC",	"SFYBAAC", "TERMSPREAD")
   zoo.US_levels = zoo.US[,levels]
   
   #Log
@@ -502,6 +511,8 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
 
 ######   Logit Models  #######
 
+
+
 glm.predict_roc <- function(zoo.C_lag0, forecast, country)
 {
   h = forecast
@@ -583,18 +594,90 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
 }
 
 
-glm.out_of_sample <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
+#Do we get same result as Liu and Moench for h = 3,6, 12, 18
+"""
+Looks like our results are pretty similar, probably shifted the dates around which means we are predicting out of sample well!
+"""
+glm.out(zoo.US_lag0, forecast = 3, country = "US", window = 382)
+glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", train_start, train_end, test_start, test_end)
 {
+  forecast = 2
+  forward <- sum(-1,-forecast)
+  
+  #To be consistent with Liu Moench
+  #train_start = "1959-01-01"
+  #train_end = "1985-08-01"
+  #test_start = "1985-09-1"
+  #test_end = "2011-12-01"
+  
+  #The dataset I have available
+  train_start = "1959-01-01"
+  train_end = "1985-08-01"
+  test_start = "1985-09-1"
+  test_end = "2011-12-01"
+  
+  zoo.C_train = window(zoo.C_lag0, start = train_start, end=train_end)
+  zoo.C_test = window(zoo.C_lag0, start = test_start, end=test_end)  
+  
+  if(country == "US")
+  {
+    glm.C_os1 = eval(substitute(
+      dyn$glm(USRECD ~ lag(variable,forward),
+          data = zoo.C_train,
+          family = binomial(link = "probit")),
+      list(variable = as.name(varname)))
+    )
+    
+
+    )
+  }
+  else if(country == "JP")
+  {
+    glm.C_os = eval(substitute(
+      dyn$glm(JAPRECD ~ lag(variable,forward),
+          data = zoo.C_train,
+          family = binomial(link = "probit")),
+      list(variable = as.name(varname)))
+    )
+    
+  }
+  else
+  {
+    print("Uh oh, no country specified or incorrect spelling")
+  }
+  
+
+
+
+ 
+  
+  
+  pred_os = predict(glm.C_os4, 
+              newdata = zoo.C_test,
+              type="response")
+  
+  zoo.REC = window(zoo.C_lag0$USRECD, start = start(pred_os4), end=end(pred_os4), frequency = 12)
+
+
+  roc(zoo.REC4,pred_os4)
+
+
+  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  plot(pred_os, ylab = "Prob. of Recession", main = paste("US", ": Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,0.5))
+  
+  
+  
   h = forecast
   c = country
-  window = wind
+  #window = win
   pred_final = vector("numeric")
-  REC_lag0 = zoo.C_lag0[,"USRECD"]
-  VAR_lag0 = zoo.C_lag0[,"PMP"]
-  VAR_lagRESULT = lag(VAR_lag0, -1)
-  REC_lagRESULT = window(REC_lag0, start = start(VAR_lagRESULT), end = end(VAR_lagRESULT))
-  VAR_lagIN = window(VAR_lagRESULT, start = start(VAR_lagRESULT), end = add.months(start(VAR_lagRESULT),window))
-  REC_lagIN = window(REC_lagRESULT, start = start(VAR_lagIN), end = end(VAR_lagIN))
+  #REC_lag0 = zoo.C_lag0[,"USRECD"]
+  #VAR_lag0 = zoo.C_lag0[,"PMP"]
+  #VAR_lagRESULT = lag(VAR_lag0, -1)
+  #REC_lagRESULT = window(REC_lag0, start = start(VAR_lagRESULT), end = end(VAR_lagRESULT))
+  #VAR_lagIN = window(VAR_lagRESULT, start = start(VAR_lagRESULT), end = add.months(start(VAR_lagRESULT),window))
+  #REC_lagIN = window(REC_lagRESULT, start = start(VAR_lagIN), end = end(VAR_lagIN))
   
   zoo.C_lagTRAIN = (window(zoo.C_lag0, start = "1959-04-01", end = "1975-05-01"))
   zoo.C_lagTEST = (window(zoo.C_lag0, start = "1959-05-01", end = "2014-09-01"))
@@ -605,6 +688,7 @@ glm.out_of_sample <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
   
   glm.C_os1 = dyn$glm(USRECD ~ lag(PMP,-1),  data = zoo.C_lagTRAIN, family = "binomial")
   glm.C_os2 = glm(zoo.C_lagTRAIN[2:nrow(zoo.C_lagTRAIN),"USRECD"] ~ lag(zoo.C_lagTRAIN[,"PMP"],-1), data = zoo.C_lagTRAIN, family = "binomial")
+  
   
   #glm.C_os2 = glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1),, family="binomial")
   #glm.C_os3 = dyn$glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1), data = window(zoo.C_lag0, start = "1959-04-01", end = "1975-04-01"), family = "binomial")
