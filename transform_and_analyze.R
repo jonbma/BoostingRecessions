@@ -90,7 +90,7 @@ transform_season_US <- function(df.US, rec = 'D')
 {
   ####Convert to Zoo ###
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
-  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC_TERM.csv")
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
                     skip=9,                # skip the first 8
                     stringsAsFactors=FALSE
@@ -239,8 +239,6 @@ transform_season_JP <- function()
   {
     return(names(df.JP_header['NEED_TRANS',df.JP_header['NEED_TRANS',] == name]))
   }
-  
-  
   
   same_JP = JP_var_names(name = 0)
   level_1D_JP = JP_var_names(name = "LEVEL_1D")
@@ -492,7 +490,7 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0, country, distr = "b
   #Plot Prediction Against ACTUAL Recession
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(country, ":", m, "Boosting Roll Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
   setwd("~/Google Drive/Independent Work/Writing/Graphs")
   dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",run,"_.png", sep = ""))
   dev.off()
@@ -534,11 +532,11 @@ glm.predict_roc <- function(zoo.C_lag0, forecast, country)
 
 
 ##Rolling Forecast Logit
-glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
+glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, wind = 317)
 {
   h = forecast
   c = country
-  window = wind
+  window = wind #317 will go from 1959-04-01 to 1984-09-01
   #run = (nrow(zoo.C)-window-h)
   run = (nrow(zoo.C_lag0)-window-h - 1)
   pred_final = vector("numeric")
@@ -553,8 +551,11 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
     #REC_shift = REC_lagRESULT[i:shift,]
     if(country == "US")
     {
-    glm.C = dyn$glm(USRECD ~ lag(PMP, forward), data = zoo.C_shift, family = "binomial")
-    glm.C2 = dyn$glm(zoo.C_shift[sum(abs(forward),1):nrow(zoo.C_shift),"USRECD"] ~ lag(zoo.C_shift[,"PMP"], forward), data = zoo.C_shift, family = "binomial")
+    glm.C = eval(substitute(
+              dyn$glm(USRECD ~ lag(variable, forward), 
+              data = zoo.C_shift, 
+              family = "binomial"),
+              list(variable = as.name(varname))))
     }
     else if(country == "JP")
     {
@@ -565,12 +566,10 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
       print("Uh oh, no country specified or incorrect spelling")
     }
     #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  predict.glm(glm.C2,
+    pred_final[i] =  predict.glm(glm.C,
                              newdata = zoo.C_lag0[shift,], 
                              type="response")
     
-    #GLM1 = 1985-04-01, 0.1812245 
-    #GLM2 = 
   }
   begin_window = sum(1,window,h,1) #Forecast out of sample h +1 months ahead
   end_window = sum(begin_window, run, -1) 
@@ -579,7 +578,8 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
   end_month = as.numeric(format(time(zoo.C_lag0[end_window,]),"%m"))
   end_year = as.numeric(format(time(zoo.C_lag0[end_window,]),"%Y"))
   if(country == "US")
-  {ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  {
+    ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
   }
   else if(country == "JP")
   {ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
@@ -588,48 +588,58 @@ glm.roc_roll <- function(zoo.C_lag0, forecast = 0, country, wind = 180)
   
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": ", varname," GLM Roll Forecast",h,"Months"), axes = TRUE, ylim = c(0,1))
   
   return(roc(ts.REC, ts.pred))
 }
 
 
-#Do we get same result as Liu and Moench for h = 3,6, 12, 18
-"""
-Looks like our results are pretty similar, probably shifted the dates around which means we are predicting out of sample well!
-"""
-glm.out(zoo.US_lag0, forecast = 3, country = "US", window = 382)
-glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", train_start, train_end, test_start, test_end)
+glm.roll.termspread3 = glm.roc_roll(zoo.US_lag0, forecast = 3, country = "US", varname = "TERMSPREAD")
+glm.out.termspread3 = glm.out(zoo.US_lag0, forecast = 3, country = "US", varname = "TERMSPREAD")
+
+glm.roll.termspread17 = glm.roc_roll(zoo.US_lag0, forecast = 17, country = "US", varname = "TERMSPREAD")
+glm.out.termspread17 = glm.out(zoo.US_lag0, forecast = 17, country = "US", varname = "TERMSPREAD")
+
+glm.roll.pmp3 = glm.roc_roll(zoo.US_lag0, forecast = 3, country = "US", varname = "PMP")
+glm.out.pmp3 = glm.out(zoo.US_lag0, forecast = 3, country = "US", varname = "PMP", end_train = "1985-08-01")
+
+glm.out.OPTA0 = glm.out(zoo.JP_lag0, forecast = 0, country = "JP", varname = "OPTA", end_train = "1985-08-01")
+glm.out.OPTA3 = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "OPTA", end_train = "1985-08-01")
+glm.out.OPTA6 = glm.out(zoo.JP_lag0, forecast = 6, country = "JP", varname = "OPTA", end_train = "1985-08-01")
+glm.out.OPTA12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "OPTA", end_train = "1985-08-01")
+glm.out.JPN0015_12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTI0015", end_train = "1985-08-01")
+glm.out.JPNTK0011 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTK0011", end_train = "1985-08-01")
+
+glm.out_all <
+glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_train = "1985-09-01")
 {
-  forecast = 2
   forward <- sum(-1,-forecast)
-  
-  #To be consistent with Liu Moench
-  #train_start = "1959-01-01"
-  #train_end = "1985-08-01"
-  #test_start = "1985-09-1"
-  #test_end = "2011-12-01"
-  
-  #The dataset I have available
-  train_start = "1959-01-01"
-  train_end = "1985-08-01"
-  test_start = "1985-09-1"
-  test_end = "2011-12-01"
+  train_start = start(zoo.C_lag0)
+  train_end = end_train
+  test_start = as.Date(train_end) + months(1)
+  test_end = end(zoo.C_lag0)
   
   zoo.C_train = window(zoo.C_lag0, start = train_start, end=train_end)
   zoo.C_test = window(zoo.C_lag0, start = test_start, end=test_end)  
   
   if(country == "US")
   {
-    glm.C_os1 = eval(substitute(
+    glm.C_os = eval(substitute(
       dyn$glm(USRECD ~ lag(variable,forward),
           data = zoo.C_train,
           family = binomial(link = "probit")),
       list(variable = as.name(varname)))
     )
     
-
-    )
+    pred_os = predict(glm.C_os, 
+                      newdata = zoo.C_test,
+                      type="response")
+    
+    zoo.REC = window(zoo.C_lag0$USRECD, 
+                     start = start(pred_os),
+                     end=end(pred_os),
+                     frequency = 12)
+    
   }
   else if(country == "JP")
   {
@@ -639,93 +649,25 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", train_st
           family = binomial(link = "probit")),
       list(variable = as.name(varname)))
     )
+    pred_os = predict(glm.C_os, 
+                      newdata = zoo.C_test,
+                      type="response")
     
+    zoo.REC = window(zoo.C_lag0$JAPRECD, 
+                     start = start(pred_os),
+                     end=end(pred_os),
+                     frequency = 12)
   }
   else
   {
     print("Uh oh, no country specified or incorrect spelling")
   }
-  
-
-
-
- 
-  
-  
-  pred_os = predict(glm.C_os4, 
-              newdata = zoo.C_test,
-              type="response")
-  
-  zoo.REC = window(zoo.C_lag0$USRECD, start = start(pred_os4), end=end(pred_os4), frequency = 12)
-
-
-  roc(zoo.REC4,pred_os4)
-
 
   plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(pred_os, ylab = "Prob. of Recession", main = paste("US", ": Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,0.5))
-  
-  
-  
-  h = forecast
-  c = country
-  #window = win
-  pred_final = vector("numeric")
-  #REC_lag0 = zoo.C_lag0[,"USRECD"]
-  #VAR_lag0 = zoo.C_lag0[,"PMP"]
-  #VAR_lagRESULT = lag(VAR_lag0, -1)
-  #REC_lagRESULT = window(REC_lag0, start = start(VAR_lagRESULT), end = end(VAR_lagRESULT))
-  #VAR_lagIN = window(VAR_lagRESULT, start = start(VAR_lagRESULT), end = add.months(start(VAR_lagRESULT),window))
-  #REC_lagIN = window(REC_lagRESULT, start = start(VAR_lagIN), end = end(VAR_lagIN))
-  
-  zoo.C_lagTRAIN = (window(zoo.C_lag0, start = "1959-04-01", end = "1975-05-01"))
-  zoo.C_lagTEST = (window(zoo.C_lag0, start = "1959-05-01", end = "2014-09-01"))
-  
-  
-  
-  glm.C_os4 = glm(REC_lagIN ~ VAR_lagIN, family = "binomial")
-  
-  glm.C_os1 = dyn$glm(USRECD ~ lag(PMP,-1),  data = zoo.C_lagTRAIN, family = "binomial")
-  glm.C_os2 = glm(zoo.C_lagTRAIN[2:nrow(zoo.C_lagTRAIN),"USRECD"] ~ lag(zoo.C_lagTRAIN[,"PMP"],-1), data = zoo.C_lagTRAIN, family = "binomial")
-  
-  
-  #glm.C_os2 = glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1),, family="binomial")
-  #glm.C_os3 = dyn$glm(zoo.C_lag0[2:nrow(zoo.C_lag0),"USRECD"] ~ lag(zoo.C_lag0[,"PMP"],-1), data = window(zoo.C_lag0, start = "1959-04-01", end = "1975-04-01"), family = "binomial")
-  
-  
-  
-  pred_final =  predict.glm(glm.C_os1,
-                              newdata = zoo.C_lagTEST,
-                              type="response")
-  
-  begin_window = sum(1,window,h,1) #Forecast out of sample h +1 months ahead
-  end_window = sum(begin_window, run, -1) 
-  begin_month = 6 #as.numeric(format(time(zoo.C_lag0[begin_window,]),"%m"))
-  begin_year = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%Y"))
-  end_month = as.numeric(format(time(zoo.C_lag0[end_window,]),"%m"))
-  end_year = as.numeric(format(time(zoo.C_lag0[end_window,]),"%Y"))
-  if(country == "US")
-  {
-    ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  }
-  else if(country == "JP")
-  {
-    ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  }
-  ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)  
-  
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-  par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
-  
-  roc(ts.REC, ts.pred)
-  
-  return(roc(ts.REC, ts.pred))
-  
+  plot(pred_os, ylab = "Prob. of Recession", main = paste(country, ":", varname,"GLM out Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
+  return(roc(zoo.REC,pred_os))
 }
-#### Factor Models (If time permits) #####
-
 
 
 
@@ -817,8 +759,6 @@ plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Vari
 
 #Transform and Season#
 zoo.US_lag0 = transform_season_US(df.US)
-zoo.US_lag0E = transform_season_US(df.US, 'E')
-zoo.US_lag0G = transform_season_US(df.US, 'G')
 
 ############## In-Sample #####################
 #Logit
