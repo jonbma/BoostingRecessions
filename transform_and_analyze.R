@@ -299,7 +299,7 @@ transform_season_JP <- function()
   same_JP = JP_var_names(name = "LEVEL")
   level_1D_JP = JP_var_names(name = "LEVEL_1D")
   log_1D_JP  = JP_var_names(name = "LOG_1D")
-  #log_2D_JP = JP_var_names(name = "LOG_2D")
+  log_2D_JP = JP_var_names(name = "LOG_2D")
   
   log_transform <-function(zoo.C, log_0D)
   {
@@ -393,6 +393,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
   
+  
   #Use GG Plot here and include what is h and d
   plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
   
@@ -411,20 +412,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(
-  forecast = 0, 
-  lags = 3, 
-  zoo.C_lag0, 
-  country, 
-  distr = "bernoulli", 
-  train = 1.0,
-  run.full = TRUE, 
-  runs = 0, 
-  m = 400,
-  wind = 317, 
-  steps = 0.01
-  end_train = "1985-08-01"
-  )
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  m = 400, wind = 317, steps = 0.01, end_train = "1985-08-01")
 {
   h = forecast
   d = lags
@@ -461,6 +449,7 @@ gbm.roc_roll <- function(
     run = runs
   }
   
+  
   #Create prediction vector
   pred_final = vector("numeric")
   #cv_score = vector("integer")
@@ -476,16 +465,19 @@ gbm.roc_roll <- function(
   ptm <- proc.time()
 
   #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
-  for(i in 0:sum(run))
+  for(i in 1:sum(run,1))
   {
     #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
     #shift  <- sum(i,window)
-    start_shift  <- months(i) + as.Date(train_start)
-    end_shift <- months(i) + as.Date(train_end)
+    start_shift  <- months(i-1) + as.Date(train_start)
+    end_shift <- months(i-1) + as.Date(train_end)
     
     zoo.C_shift =  window(zoo.C_lagRESULT, start = start_shift, end = end_shift)
     REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
-
+    zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
+    
+    
+    
 #     gbm.C = gbm(REC_shift ~ . ,
 #                 data = zoo.C_shift,
 #                 distribution = distr,
@@ -494,99 +486,96 @@ gbm.roc_roll <- function(
 #                 cv.folds = 5,
 #                 train.fraction = 1.0,
 #                 n.trees = m)
-    
-    gbm.C = gbm.fit(x = zoo.C_shift,
-                y = REC_shift,
-                distribution = distr,
-                shrinkage = steps, 
-                bag.fraction = 1,
-                n.trees = m,
-                verbose = FALSE)
-    
-    
-    #Get the summary of GBM model
-    sum_gbm.C = summary(gbm.C, plotit= FALSE)
+#     gbm.C = gbm.fit(x = zoo.C_shift,
+#                 y = REC_shift,
+#                 distribution = distr,
+#                 shrinkage = steps, 
+#                 bag.fraction = 1,
+#                 n.trees = m,
+#                 verbose = FALSE)
+#     
+      
+      #Get the summary of GBM model
+#     sum_gbm.C = summary(gbm.C, plotit= FALSE)
 
     #Print best iteration and store
     #best.iter_cv = gbm.perf(gbm.C, method="cv")
     #cv_score[i] = best.iter_cv
     cv_score = m
     #Forecast using LAST time to forecast NEXT h period
-    zoo.C_predict = window(zoo.C_lagRESULT, start = (test_start+months(i)), end = (test_start+months(i)))
     #next_predict = sum(shift,h,1)
-    pred_final[i] =  predict(gbm.C,
-                            zoo.C_predict, 
-                            n.trees= m, 
-                            type="response")  
-    #pred_final[i] = 0
-
+#     pred_final[i] =  predict(gbm.C,
+#                             zoo.C_predict, 
+#                             n.trees= m, 
+#                             type="response")
+    pred_final[i] = 0
+    
     #Store number of positive variables
-    pos_var[i] = sum(as.numeric(sum_gbm.C[2] >0))
+#     pos_var[i] = sum(as.numeric(sum_gbm.C[2] >0))
     
     #Update average and frequency    
-    if(length(df.store) == 0)
-    {
-    df.store = data.frame(NAME = sum_gbm.C[order(sum_gbm.C[[1]]),1], AVG = 0, FREQ = 0)
-    rownames(df.store) = df.store$NAME
+#     if(length(df.store) == 0)
+#     {
+#       df.store = data.frame(NAME = sum_gbm.C[order(sum_gbm.C[[1]]),1], AVG = 0, FREQ = 0)
+#       rownames(df.store) = df.store$NAME
+#     }
+#     if(length(df.store) > 0)
+#     {
+#       order_var = order(sum_gbm.C[[1]])
+#       #Add I_j^2 value
+#       df.store[,2] <- df.store[,2] + sum_gbm.C[order_var,2]
+#       #Add to get frequency of each I_j^2
+#       df.store[,3] <- df.store[,3] + as.numeric(sum_gbm.C[order_var,2]>0)
+#     }
+#     
+# 
+#     
+#     if(i %% 10 == 0)
+#     {
+#       cat(i)
+#       save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
+#       #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
+#     }
     }
-    if(length(df.store) > 0)
-    {
-    order_var = order(sum_gbm.C[[1]])
-    #Add I_j^2 value
-    df.store[,2] <- df.store[,2] + sum_gbm.C[order_var,2]
-    #Add to get frequency of each I_j^2
-    df.store[,3] <- df.store[,3] + as.numeric(sum_gbm.C[order_var,2]>0)
-    }
-    
-    if(i %% 10 == 0)
-    {
-      cat(i)
-      setwd("~/Google Drive/Independent Work/Code")
-      save(pred_final, file = "save_pred.RData")
-      #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
-    }
-  }
-  #Print how long it took for ALL the run
-  time_spent = proc.time() - ptm
-  
-  #Take average of I_j^2 value
-  df.store[,2] = df.store[,2]/run
-  df.store[,3] = df.store[,3]/run
+#   #Print how long it took for ALL the run
+#   time_spent = proc.time() - ptm
+#   
+#   #Take average of I_j^2 value
+#   df.store[,2] = df.store[,2]/run
+#   df.store[,3] = df.store[,3]/run
+# 
+#   #Return the average score from highest to lowest
+#   df.store = df.store[order(df.store[,2], decreasing = TRUE),]
+# 
+#   #Convert into time series object
+  ts.pred = ts(pred_final, start = c(year(test_start),month(test_start),day(test_start)), frequency = 12)
+  #ts.pos = ts(pos_var, start = c(year(test_start),month(test_start),day(test_start)), frequency = 12)
+  ts.REC = ts(REC_lagRESULT, start = c(year(test_start),month(test_start)), end = c(end(ts.pred)[1],end(ts.pred)[2]), frequency = 12)
 
-  #Return the average score from highest to lowest
-  df.store = df.store[order(df.store[,2], decreasing = TRUE),]
-  
-  #Plot from first iteration to last iteration
-  #begin_window = #sum(1,window,h,1)
-  #end_window = sum(begin_window, run, -1) #In case where run = nrow of zoo.C_lagresult, end window should just be nrows
-  #begin_month = month(test_start)#as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%m"))
-  #begin_year = year(test_start)#as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%Y"))
-  #end_month =month(test_end) #as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%m"))
-  #end_year = year(test_end)#as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%Y"))
-  #ts.REC = ts(REC_lagRESULT[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  zoo.REC = window(REC_lagRESULT, start = test_start, end = test_end, frequency = 12)
-  zoo.pred = zooreg(pred_final, start = test_start, end = test_end, frequency = 12)
-  zoo.pos = zooreg(pos_var, start = test_start, end = test_end, frequency = 12)
 
   #Plot Prediction Against ACTUAL Recession
-  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", main = paste(country, ":", m, "Boosting Roll Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
-  setwd("~/Google Drive/Independent Work/Writing/Graphs")
-  dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",run,"_.png", sep = ""))
-  dev.off()
+  plot(ts.pred, col = "red", ylab = "Prob. of Recession", 
+       main = paste(c, ":", m, "Boosting Roll Forecast",h,"Months"), 
+       axes = TRUE, 
+       ylim=c(0,1))
+  #setwd("~/Google Drive/Independent Work/Writing/Graphs")
+  #dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",run,"_.png", sep = ""))
+  #dev.off()
   
   #Return Prediction, Final Score, CV,Score and Ideally ROC
-  return(list(zoo.REC,
-              zoo.pred,
-              roc(zoo.REC,zoo.pred),
-              df.store,
-              ts.pos,
-              cv_score,
-              time_spent))
+  return(list(ts.REC,
+              ts.pred,
+              roc(ts.REC,ts.pred),
+              #df.store,
+              #ts.pos,
+              cv_score
+              #time_spent
+              ))
 }
 
-
+gbm.US_h3d3_roll_mini = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = FALSE, runs = 10, country = "US", predzero = TRUE)
 
 ######   Logit Models  #######
 
@@ -676,7 +665,17 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
 }
 
 #Return ALL ROC of variables with forecast h
-glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01", graph_param = FALSE, all_col = TRUE)
+glm.out_all_roll_USh3 = glm.out_all(zoo.US_lag0, h =3, c = "US", OUT = FALSE, all_col = TRUE)
+glm.out_all_roll_USh6 = glm.out_all(zoo.US_lag0, h =6, c = "US", OUT = FALSE, all_col = TRUE)
+glm.out_all_roll_USh12 = glm.out_all(zoo.US_lag0, h =12, c = "US", OUT = FALSE, all_col = TRUE)
+
+glm.out_all <-function(zoo.C_lag0, 
+                       h = 3, 
+                       c, 
+                       end = "1985-08-01",
+                       graph_param = FALSE, 
+                       all_col = TRUE,
+                       OUT = TRUE)
 {
   name_all = colnames(zoo.C_lag0)[2:ncol(zoo.C_lag0)]
   df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0)
@@ -686,20 +685,37 @@ glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01", graph_param = F
   }
   else
   {
-    total = 100
+    total = 3
   }
   
   ptm <- proc.time()
   
-  for(i in 1:total)
+  if(OUT == TRUE)
   {
-    glm.out_model = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], end_train = end, graph = graph_param)
-    #df.store_all[,name_all[i]] = 
-    df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
-    if(i %% 10 == 0)
+    for(i in 1:total)
     {
-      cat(i)
-    }    
+      glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], end_train = end, graph = graph_param)
+      #df.store_all[,name_all[i]] = 
+      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
+      if(i %% 10 == 0)
+      {
+        cat(i)
+      }    
+    }
+  }
+  else
+  {
+    for(i in 1:total)
+    {
+      glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i])
+      #df.store_all[,name_all[i]] = 
+      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
+      if(i %% 10 == 0)
+      {
+        cat(i)
+      }    
+    }
+    
   }
   time_spent = proc.time() - ptm
   
@@ -952,10 +968,7 @@ glm.out_all_US_h6 = glm.out_all(zoo.US_lag0, h = 6, c = "US", end = "1985-08-01"
 glm.out_all_US_h12 = glm.out_all(zoo.US_lag0, h = 12, c = "US", end = "1985-08-01", graph_param = FALSE, all_col = TRUE)
 
 #Boost Mini
-gbm.US_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.full = FALSE, iter = 10)
-gbm.US_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = FALSE, iter = 20)
-gbm.US_h6d3_roll = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = FALSE, iter = 80)
-gbm.US_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = FALSE, iter = 50)
+gbm.US_h3d3_roll_mini = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = FALSE, country = "US", predzero = TRUE, runs = 10)
 
 #Boost Full
 #gbm.US_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
