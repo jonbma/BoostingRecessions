@@ -92,7 +92,11 @@ DEMEAN_COUNTRY <- function(zoo.C, DEMEAN_names)
 }
 
 add.months= function(date,n) seq(date, by = paste (n, "months"), length = 2)[2]
-
+elapsed_months <- function(end_date, start_date) {
+  ed <- as.POSIXlt(end_date)
+  sd <- as.POSIXlt(start_date)
+  12 * (ed$year - sd$year) + (ed$mon - sd$mon)
+}
 
 
 ################### Read in Data and Clean ######################
@@ -428,7 +432,7 @@ gbm.roc_roll <- function(
   
   if(d == 0)
   {
-    horizon = h
+    horizon = h + 1
   }
   else
   {
@@ -442,15 +446,16 @@ gbm.roc_roll <- function(
   
   train_start = start(zoo.C_lagRESULT)
   train_end = end_train
-  test_start = train_end
+  test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
   #Moving Window Size
-  window = wind
+  #window = wind
   
   #Setting Number of run (Not to be confused with M trees)
   if(run.full == TRUE){
-      run = (nrow(zoo.C_lagRESULT)-window-h - 1)
+      #run = (nrow(zoo.C_lagRESULT)-window-h - 1)
+      run = elapsed_months(test_end, test_start)
     }
   else{
     run = runs
@@ -471,19 +476,15 @@ gbm.roc_roll <- function(
   ptm <- proc.time()
 
   #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
-  for(i in 1:run)
+  for(i in 0:sum(run))
   {
     #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
-    shift  <- sum(i,window)
-    #I never use forward
-    #forward <- sum(-1,-h)
-    #zoo.C_shift1 =  zoo.C_lagRESULT[i:shift,]
-    zoo.C_shift2 = zoo.C_lag0[i:shift,2:ncol(zoo.C_lag0)]
-    #REC_shift = REC_lagRESULT[i:shift,]
-    REC_shift2 = zoo.C_lag0[i:shift,1]
+    #shift  <- sum(i,window)
+    start_shift  <- months(i) + as.Date(train_start)
+    end_shift <- months(i) + as.Date(train_end)
     
-    
-    
+    zoo.C_shift =  window(zoo.C_lagRESULT, start = start_shift, end = end_shift)
+    REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
 
 #     gbm.C = gbm(REC_shift ~ . ,
 #                 data = zoo.C_shift,
@@ -494,22 +495,13 @@ gbm.roc_roll <- function(
 #                 train.fraction = 1.0,
 #                 n.trees = m)
     
-    
-    gbm.C1 = gbm.fit(x = zoo.C_shift,
+    gbm.C = gbm.fit(x = zoo.C_shift,
                 y = REC_shift,
                 distribution = distr,
                 shrinkage = steps, 
                 bag.fraction = 1,
                 n.trees = m,
                 verbose = FALSE)
-
-    gbm.C2 = dyn$gbm.fit(x = lag(zoo.C_shift2,-4),
-                     y = REC_shift2[2:length(REC_shift2)],
-                     distribution = distr,
-                     shrinkage = steps, 
-                     bag.fraction = 1,
-                     n.trees = m,
-                     verbose = FALSE)
     
     
     #Get the summary of GBM model
@@ -520,9 +512,10 @@ gbm.roc_roll <- function(
     #cv_score[i] = best.iter_cv
     cv_score = m
     #Forecast using LAST time to forecast NEXT h period
-    next_predict = sum(shift,h,1)
+    zoo.C_predict = window(zoo.C_lagRESULT, start = (test_start+months(i)), end = (test_start+months(i)))
+    #next_predict = sum(shift,h,1)
     pred_final[i] =  predict(gbm.C,
-                            zoo.C_lagRESULT[next_predict,], 
+                            zoo.C_predict, 
                             n.trees= m, 
                             type="response")  
     #pred_final[i] = 0
@@ -564,28 +557,29 @@ gbm.roc_roll <- function(
   df.store = df.store[order(df.store[,2], decreasing = TRUE),]
   
   #Plot from first iteration to last iteration
-  begin_window = sum(1,window,h,1)
-  end_window = sum(begin_window, run, -1) #In case where run = nrow of zoo.C_lagresult, end window should just be nrows
-  begin_month = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%m"))
-  begin_year = as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%Y"))
-  end_month = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%m"))
-  end_year = as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%Y"))
-  ts.REC = ts(REC_lagRESULT[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
-  ts.pos = ts(pos_var, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
+  #begin_window = #sum(1,window,h,1)
+  #end_window = sum(begin_window, run, -1) #In case where run = nrow of zoo.C_lagresult, end window should just be nrows
+  #begin_month = month(test_start)#as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%m"))
+  #begin_year = year(test_start)#as.numeric(format(time(zoo.C_lagRESULT[begin_window,]),"%Y"))
+  #end_month =month(test_end) #as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%m"))
+  #end_year = year(test_end)#as.numeric(format(time(zoo.C_lagRESULT[end_window,]),"%Y"))
+  #ts.REC = ts(REC_lagRESULT[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
+  zoo.REC = window(REC_lagRESULT, start = test_start, end = test_end, frequency = 12)
+  zoo.pred = zooreg(pred_final, start = test_start, end = test_end, frequency = 12)
+  zoo.pos = zooreg(pos_var, start = test_start, end = test_end, frequency = 12)
 
   #Plot Prediction Against ACTUAL Recession
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(country, ":", m, "Boosting Roll Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
+  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", main = paste(country, ":", m, "Boosting Roll Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
   setwd("~/Google Drive/Independent Work/Writing/Graphs")
   dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",run,"_.png", sep = ""))
   dev.off()
   
   #Return Prediction, Final Score, CV,Score and Ideally ROC
-  return(list(ts.REC,
-              ts.pred,
-              roc(ts.REC,ts.pred),
+  return(list(zoo.REC,
+              zoo.pred,
+              roc(zoo.REC,zoo.pred),
               df.store,
               ts.pos,
               cv_score,
@@ -617,11 +611,11 @@ glm.roc_in <- function(zoo.C_lag0, forecast, country)
 
 
 ##Rolling Forecast Logit
-glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, wind = 317)
+glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, wind = 316)
 {
   h = forecast
   c = country
-  window = wind #317 will go from 1959-04-01 to 1985-08-01
+  window = wind #316 will go from 1959-04-01 to 1985-08-01
   run = (nrow(zoo.C_lag0)-window-h - 1)
   pred_final = vector("numeric")
   #zoo.C_lag0 = lag(zoo.C_shift[,"PMP"], forward)
