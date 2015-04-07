@@ -51,3 +51,5 @@ par(new=TRUE)
 plot(zoo.JP$JPNVT0060, col = "blue", axes = TRUE)
 plot(zoo.JP_lag0$JPNVT0060, col = "blue", axes = TRUE)
 
+###
+
