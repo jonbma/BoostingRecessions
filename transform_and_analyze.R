@@ -246,7 +246,7 @@ approx_tankan_JP <- function()
 }
 
 ## Transform Japan Function ##
-transform_season_JP <- function()
+transform_season_JP <- function(include_TN = TRUE)
 {
   
   #### Read in Data for Japan ####
@@ -306,9 +306,13 @@ transform_season_JP <- function()
   }
   zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_1D_JP, log_2D_JP)
   #Merge Tankan Dataset
+  
+  if(include_TN == TRUE)
+  {
   zoo.JP_TAN = approx_tankan_JP()
   zoo.JP_TAN = window(zoo.JP_TAN, start = start(zoo.JP_lag0), end = end(zoo.JP_lag0))
   zoo.JP_lag0 = merge(zoo.JP_lag0, zoo.JP_TAN)
+  }
   
   #Remove NA from original data. Should only remove row 1 because of log_1D  
   zoo.JP_lag0 = na.omit(zoo.JP_lag0)
@@ -411,7 +415,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  m = 400, wind = 317, steps = 0.01, end_train = "1985-08-01")
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, end_train = "1985-08-01")
 {
   h = forecast
   d = lags
@@ -436,9 +440,6 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
-  #Moving Window Size
-  #window = wind
-  
   #Setting Number of run (Not to be confused with M trees)
   if(run.full == TRUE){
       #run = (nrow(zoo.C_lagRESULT)-window-h - 1)
@@ -448,10 +449,8 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
     run = runs
   }
   
-  
   #Create prediction vector
   pred_final = vector("numeric")
-  #cv_score = vector("integer")
   
   #Create store for average and frequency count of variables selected
   df.store = data.frame()
@@ -474,24 +473,33 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
     REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
     zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
     
-#   gbm.C = gbm(REC_shift ~ . ,
-#                 data = zoo.C_shift,
-#                 distribution = distr,
-#                 shrinkage = steps, 
-#                 bag.fraction = 1,
-#                 cv.folds = 5,
-#                 train.fraction = 1.0,
-#                 n.trees = m)
-    gbm.C = gbm.fit(x = zoo.C_shift,
+    if(i == 1)
+    {
+      gbm.C = gbm(REC_shift ~ . ,
+                  data =  zoo.C_shift,
+                  distribution = distr,
+                  shrinkage = steps, 
+                  bag.fraction = 1.0, 
+                  train.fraction = 1.0, 
+                  cv.folds = 5, 
+                  n.trees = max_m)
+      
+      m = gbm.perf(gbm.C, method="cv")
+      print(m)
+    }
+    else
+    {  
+      gbm.C = gbm.fit(x = zoo.C_shift,
                 y = REC_shift,
                 distribution = distr,
                 shrinkage = steps, 
                 bag.fraction = 1,
                 n.trees = m,
                 verbose = FALSE)
+    }
     
       
-      #Get the summary of GBM model
+    #Get the summary of GBM model
     sum_gbm.C = summary(gbm.C, plotit= FALSE)
 
     #Print best iteration and store
@@ -522,16 +530,13 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
       #Add to get frequency of each I_j^2
       df.store[,3] <- df.store[,3] + as.numeric(sum_gbm.C[order_var,2]>0)
     }
-    
-
-    
     if(i %% 10 == 0)
     {
       cat(i)
       save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
       #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
     }
-    }
+  }
   #Print how long it took for ALL the run
   time_spent = proc.time() - ptm
   
@@ -543,15 +548,21 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   df.store = df.store[order(df.store[,2], decreasing = TRUE),]
 
   #Convert into time series object
-  ts.pred = ts(pred_final, start = c(year(test_start),month(test_start),day(test_start)), frequency = 12)
-  ts.pos = ts(pos_var, start = c(year(test_start),month(test_start),day(test_start)), frequency = 12)
-  ts.REC = ts(REC_lagRESULT, start = c(year(test_start),month(test_start)), end = c(end(ts.pred)[1],end(ts.pred)[2]), frequency = 12)
+  from <- as.Date(test_start)
+  to <- as.Date(test_start) + months(run)
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred_final, months)
+  zoo.pos = zoo(pos_var, months)
+  zoo.REC = window(REC_lagRESULT, 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
 
   #Plot Prediction Against ACTUAL Recession
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", 
-       main = paste(c, ":", m, "Boosting Roll Forecast",h,"Months"), 
+  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
+       main = paste(c, ":", "Boosting Rolling Forecast",h,"Months with", m, "iterations"), 
        axes = TRUE, 
        ylim=c(0,1))
   #setwd("~/Google Drive/Independent Work/Writing/Graphs")
@@ -559,64 +570,79 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   #dev.off()
   
   #Return Prediction, Final Score, CV,Score and Ideally ROC
-  return(list(ts.REC,
-              ts.pred,
-              roc(ts.REC,ts.pred),
+  return(list(zoo.REC,
+              zoo.pred,
+              roc(zoo.REC,zoo.pred),
               df.store,
-              ts.pos,
+              zoo.pos,
               cv_score,
               time_spent
-              ))
+              )
+         )
 }
 
 ######   Logit Models  #######
 
-glm.roc_in <- function(zoo.C_lag0, forecast, country)
+glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
 {
   h = forecast
   if(country == "US")
   {
-    glm.C_h = dyn$glm(USRECD ~ lag(JPNVT0060, sum(-1,-h)), data = zoo.C_lag0, family = "binomial")
+    glm.C_h = eval(substitute(dyn$glm(USRECD ~ lag(variable, sum(-h,-1)), 
+              data = zoo.C_lag0, 
+              family = "binomial"),list(variable = as.name(varname))))
     pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
     RECD = window(zoo.C_lag0$USRECD, start = start(pred.glm.C_h), end = end(pred.glm.C_h))
     return(roc(RECD, pred.glm.C_h))
   }
   else if(country == "JP")
   {
-    glm.C_h = dyn$glm(JAPRECD ~ lag(JPNTI0015, sum(-1,-h)), data = zoo.C_lag0, family = "binomial")
+    glm.C_h = eval(substitute(dyn$glm(JAPRECD ~ lag(variable, sum(-h,-1)), 
+                              data = zoo.C_lag0, 
+                              family = "binomial"),list(variable = as.name(varname))))
+    
     pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
     RECD = window(zoo.C_lag0$JAPRECD, start = start(pred.glm.C_h), end = end(pred.glm.C_h))
     return(roc(RECD, pred.glm.C_h))
   }
 }
 
+gbm.US_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US")
+gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US")
+glm.roll.US_h3 = glm.roc_roll(zoo.US_lag0, forecast = 3, varname = "PMNO", country = "US")
+glm.out.US_h3 = glm.out(zoo.US_lag0, forecast = 3, varname = "PMNO", country = "US", end_train = "1985-08-01")
 
-##Rolling Forecast Logit
-glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, wind = 316)
+##GLM Rolling Estimation
+glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, end_train = "1985-08-01")
 {
   h = forecast
   c = country
-  window = wind #316 will go from 1959-04-01 to 1985-08-01
-  run = (nrow(zoo.C_lag0)-window-h - 1)
-  pred_final = vector("numeric")
-  #zoo.C_lag0 = lag(zoo.C_shift[,"PMP"], forward)
+  train_start = start(zoo.C_lag0)
+  train_end = end_train
+  test_start = as.Date(train_end) + months(h+1) 
+  test_end = end(zoo.C_lag0)
   
-  for(i in 1:run)
+  run = elapsed_months(test_end, test_start)
+  pred_final = vector("numeric")
+  
+  for(i in 1:sum(run,1))
   {
-    #Get zoo from 1 to 180, then 2 to 182
-    shift  <- sum(i,window)
-    forward <- sum(-1,-h)
-    zoo.C_shift = zoo.C_lag0[i:shift,]
-    #REC_shift = REC_lagRESULT[i:shift,]
-    if(country == "US")
+    
+    start_shift  <- months(i-1) + as.Date(train_start)
+    end_shift <- months(i-1) + as.Date(train_end)
+    
+    zoo.C_shift =  window(zoo.C_lag0, start = start_shift, end = end_shift)
+    zoo.C_predict = window(zoo.C_lag0, start = end_shift, end = end_shift)
+    
+    if(c == "US")
     {
     glm.C = eval(substitute(
-              dyn$glm(USRECD ~ lag(variable, forward), 
+              dyn$glm(USRECD ~ lag(variable, sum(-h,-1)), 
               data = zoo.C_shift, 
               family = "binomial"),
               list(variable = as.name(varname))))
     }
-    else if(country == "JP")
+    else if(c == "JP")
     {      
       glm.C = eval(substitute(
         dyn$glm(JAPRECD ~ lag(variable, forward), 
@@ -630,33 +656,31 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
     }
     #Forecast using LAST time to forecast NEXT h period
     pred_final[i] =  predict.glm(glm.C,
-                             newdata = zoo.C_lag0[shift,], 
+                             newdata = zoo.C_predict, 
                              type="response")
     
   }
-  begin_window = sum(1,window,h,1) #Forecast out of sample h +1 months ahead
-  end_window = sum(begin_window, run, -1) 
-  begin_month = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%m"))
-  begin_year = as.numeric(format(time(zoo.C_lag0[begin_window,]),"%Y"))
-  end_month = as.numeric(format(time(zoo.C_lag0[end_window,]),"%m"))
-  end_year = as.numeric(format(time(zoo.C_lag0[end_window,]),"%Y"))
-  if(country == "US")
-  {
-    ts.REC = ts(zoo.C_lag0$USRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  }
-  else if(country == "JP")
-  {ts.REC = ts(zoo.C_lag0$JAPRECD[begin_window:end_window], start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  }
-  ts.pred = ts(pred_final, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)  
+  from <- as.Date(test_start)
+  to <- as.Date(test_end)
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred_final, months)
+  zoo.REC = window(zoo.C_lag0[,1], 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
   
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  #Plot Prediction Against ACTUAL Recession
+  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": ", varname," GLM Roll Forecast",h,"Months"), axes = TRUE, ylim = c(0,1))
-  
+  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
+       main = paste(c, ":", varname, "GLM Roll Forecast",h,"Months"), 
+       axes = TRUE, 
+       ylim=c(0,1))
+
   return(roc(ts.REC, ts.pred))
 }
-
-glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FALSE, all_col = TRUE, OUT = TRUE)
+#GLM ALL Out-Of-Sample or ALL Roll
+glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FALSE, all_col = TRUE, model = 1)
 {
   name_all = colnames(zoo.C_lag0)[2:ncol(zoo.C_lag0)]
   df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0)
@@ -671,20 +695,32 @@ glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FA
   
   ptm <- proc.time()
   
-  if(OUT == TRUE)
+  #In-Sample ALL
+  if(model == 0 )
   {
     for(i in 1:total)
     {
-      glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], end_train = end, graph = graph_param)
+      glm.in_model = glm.roc_in(zoo.C_lag0, forecast = h, country = c, varname = name_all[i])
+      #df.store_all[,name_all[i]] = 
+      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.in_model[9]) 
+      if(i %% 10 == 0)
+      {cat(i)}    
+    }
+  }
+  #Out-Sample Standard
+  else if(model == 1)
+  {
+    for(i in 1:total)
+    {
+      glm.out_model = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], end_train = end, graph = graph_param)
       #df.store_all[,name_all[i]] = 
       df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
       if(i %% 10 == 0)
-      {
-        cat(i)
-      }    
+      {cat(i)}    
     }
   }
-  else
+  #Out-Sample Rolling
+  else if(model == 2)
   {
     for(i in 1:total)
     {
@@ -692,11 +728,12 @@ glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FA
       #df.store_all[,name_all[i]] = 
       df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
       if(i %% 10 == 0)
-      {
-        cat(i)
-      }    
+      {cat(i)}    
     }
-    
+  }
+  else
+  {
+    print("umm model only goes 0,1,2")
   }
   time_spent = proc.time() - ptm
   
@@ -706,14 +743,9 @@ glm.out_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FA
   return(df.store_all)
 }
   
+#GLM Out-Of-Sample
 
-glm.out <- function(zoo.C_lag0, 
-                    forecast = 0, 
-                    country, 
-                    varname = "PMP", 
-                    end_train = "1985-08-01",
-                    logit = "TRUE",
-                    graph = "TRUE")
+glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_train = "1985-08-01", logit = "TRUE", graph = "TRUE")
 {
   forward <- sum(-1,-forecast)
   train_start = start(zoo.C_lag0)
@@ -787,7 +819,9 @@ glm.out <- function(zoo.C_lag0,
 #####---------- Japan -----------------#######
 
 #Transform and Season Japan#
-zoo.JP_lag0 = transform_season_JP()
+zoo.JP_lag0_no = transform_season_JP(include_TN = FALSE)
+zoo.JP_lag0_all = transform_season_JP(include_TN = TRUE)
+
 
 ##################In-Sample############################
 
@@ -799,10 +833,9 @@ glm.JP_h6d3 = glm.predict_roc(zoo.JP_lag0, forecast = 6, country = "JP")
 glm.JP_h12d4 = glm.predict_roc(zoo.JP_lag0, forecast = 12, country = "JP")
 
 #Boosting
-gbm.JP_h0d3 = gbm.forecast_lag(0,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
 gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
 gbm.JP_h6d3 = gbm.forecast_lag(6,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
-gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
+gbm.JP_h12d4 = gbm.forecast_lag(12,4,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0, m = 1000) 
 
 index = 2
 print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4[index]))
@@ -839,7 +872,6 @@ glm.out.IR12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "IR
 
 
 #All GLM Out Of Sample w/ ROC Score
-glm.out_all_JP_h0_19950801 = glm.out_all_JP_h0
 glm.out_all_JP_h3_19950801 = glm.out_all_JP_h3
 glm.out_all_JP_h6_19950801 = glm.out_all_JP_h6
 glm.out_all_JP_h12_19950801 = glm.out_all_JP_h12
@@ -859,7 +891,7 @@ gbm.JP_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full 
 
 #Boost Full
 #gbm.JP_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
-gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
+gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, train_end )
 gbm.JP_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
 gbm.JP_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
 
@@ -869,6 +901,18 @@ gbm.JP_h6d3_roll_full2 = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.f
 gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, m = 400)
 
 gbm.JP_h3d3_roll_full361 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 361)
+
+#Boost Full No Lags
+gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", max_m = 4000, end_train = "1995-08-01")
+gbm.JP_h6d0_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
+gbm.JP_h12d0_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
+
+gbm.JP_h3d0_roll_full_notankan = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 4000, end_train = "1995-08-01")
+gbm.JP_h3d0_roll_full_notankan400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+gbm.JP_h6d0_roll_full_notankan400 = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+gbm.JP_h12d0_roll_full_notankan400 = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+
+
 
 
 #Boost with Leading Index
@@ -951,23 +995,21 @@ glm.out_all_roll_USh6 = glm.out_all(zoo.US_lag0, h =6, c = "US", OUT = FALSE, al
 glm.out_all_roll_USh12 = glm.out_all(zoo.US_lag0, h =12, c = "US", OUT = FALSE, all_col = TRUE)
 
 
-
 #Boost Mini
-gbm.US_h3d3_roll_mini = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = FALSE, country = "US", predzero = TRUE, runs = 10)
+gbm.US_h3d0_roll_mini = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = FALSE, country = "US", runs = 10)
 
 #Boost Full
-#gbm.US_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
-
-gbm.US_h3d3_roll_full
-glm.roll.US_h3
-
 gbm.US_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
-
 gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US")
 
-gbm.US_h12d4_roll_full_100 = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US", m = 100)
-gbm.US_h3d3_roll_full2 = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
+save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_472015.RData")
+save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_472015.RData")
+save(gbm.US_h12d4_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_472015.RData")
+
+
+
+
 
 #Boost with w/ Lags w/ Fewer Trees
 gbm.US_h3d3_roll_full200 = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US", m = 200)
@@ -1007,8 +1049,7 @@ glmb1 = glmboost(NBER ~ . ,data = zoo.US2)
 
 ##Analysis ####
 
-#plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
-plot(gbm.US_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.US_h3d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
 plot(gbm.US_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
 plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
@@ -1017,3 +1058,6 @@ plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Vari
 #Recover
 load("~/Google Drive/Independent Work/Code/save_pred.RData")
 head(pred_final)
+
+load("~/Google Drive/Independent Work/Code/save_pred.RData")
+
