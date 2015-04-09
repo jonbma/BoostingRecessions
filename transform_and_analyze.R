@@ -96,6 +96,7 @@ DETREND_COUNTRY <- function(zoo.C, DETREND_names, break_point = 193)
 {
   for(i in 1:(length(DETREND_names)))
   {
+    print(DETREND_names[i])
     zoo.C[,DETREND_names[i]] = zoo(detrend(as.numeric(zoo.C[,DETREND_names[i]]),bp=break_point))
   }
   return(zoo.C)
@@ -110,18 +111,6 @@ elapsed_months <- function(end_date, start_date) {
   sd <- as.POSIXlt(start_date)
   12 * (ed$year - sd$year) + (ed$mon - sd$mon)
 }
-
-
-
-autoplot(zoo.JP$JPNTI0003)
-decompose(zoo.JP$JPNTI0003)
-
-
-
-
-
-
-
 
 
 ################### Read in Data and Clean ######################
@@ -301,15 +290,11 @@ transform_season_JP <- function(include_TN = TRUE)
   zoo.JP = na.aggregate(zoo.JP)
   
   ##Demean Trend
-  #JP_DEMEAN = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 1])
-  #JP_DETREND = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 2])
+  JP_DEMEAN = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 1])
+  JP_DETREND = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 2])
   #zoo.JP_predemean = zoo.JP
-  #zoo.JP = DEMEAN_COUNTRY(zoo.JP, JP_DEMEAN)
-  
-  #raw_pre1992 = window(zoo.JP$JPNVT0060, start = "1963-01-01", end = "1991-12-01")
-  #raw_pre1992_demean = raw_pre1992 - mean(raw_pre1992)
-  #raw_post1992 = window(zoo.JP$JPNVT0060, start = "1992-1-01")
-  #raw_post1992_demean = raw_post1992 - mean(raw_post1992)
+  zoo.JP = DEMEAN_COUNTRY(zoo.JP, JP_DEMEAN)
+  zoo.JP = DETREND_COUNTRY(zoo.JP, JP_DETREND)
   
   ### Seasonally Adjust ###
   JP_NSA = names(df.JP_header['NSA',df.JP_header['NSA',] == 1])
@@ -332,6 +317,16 @@ transform_season_JP <- function(include_TN = TRUE)
     return(log(zoo.C[,log_0D]))
   }
   zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_1D_JP, log_2D_JP)
+  
+  if(ncol(zoo.JP_lag0) == ncol(zoo.JP))
+  {
+    print("same number of columns before and after transform. Yay!")
+  }
+  else
+  {
+    print("Uh, we don't have same number of columns before and after transform. Double check to make sure non-transformed in dataset has LEVEL and NOT 0")
+  }
+  
   #Merge Tankan Dataset
   
   if(include_TN == TRUE)
@@ -846,7 +841,6 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_trai
 #####---------- Japan -----------------#######
 
 #Transform and Season Japan#
-zoo.JP_lag0_nodemean = transform_season_JP(include_TN = FALSE)
 zoo.JP_lag0_no = transform_season_JP(include_TN = FALSE)
 zoo.JP_lag0_all = transform_season_JP(include_TN = TRUE)
 
