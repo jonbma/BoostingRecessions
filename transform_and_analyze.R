@@ -22,6 +22,8 @@ library(sandwich) #
 library(BMS)
 library(mboost)
 library(lubridate)
+library(pracma)
+#library(tis)
 setwd("~/Google Drive/Independent Work/Code")
 source("gw.test.R")
 
@@ -90,6 +92,18 @@ DEMEAN_COUNTRY <- function(zoo.C, DEMEAN_names)
     return(zoo.C)
 }
 
+DETREND_COUNTRY <- function(zoo.C, DETREND_names, break_point = 193)
+{
+  for(i in 1:(length(DETREND_names)))
+  {
+    zoo.C[,DETREND_names[i]] = zoo(detrend(as.numeric(zoo.C[,DETREND_names[i]]),bp=break_point))
+  }
+  return(zoo.C)
+}
+
+#autoplot(zoo(detrend(as.numeric((zoo.JP$JPNTI0003)),tt = "constant"), time(zoo.JP)))
+#autoplot(zoo(detrend(as.numeric(log(zoo.JP$JPNTI0003))), time(zoo.JP)))
+
 add.months= function(date,n) seq(date, by = paste (n, "months"), length = 2)[2]
 elapsed_months <- function(end_date, start_date) {
   ed <- as.POSIXlt(end_date)
@@ -98,13 +112,25 @@ elapsed_months <- function(end_date, start_date) {
 }
 
 
+
+autoplot(zoo.JP$JPNTI0003)
+decompose(zoo.JP$JPNTI0003)
+
+
+
+
+
+
+
+
+
 ################### Read in Data and Clean ######################
 
 ### Read In Data for US ####
 
 
 ### US Transform Season Function ### 
-transform_season_US <- function(df.US, rec = 'D')
+transform_season_US <- function(rec = 'D')
 {
   ####Convert to Zoo ###
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
@@ -275,9 +301,10 @@ transform_season_JP <- function(include_TN = TRUE)
   zoo.JP = na.aggregate(zoo.JP)
   
   ##Demean Trend
-  JP_DEMEAN = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 1])
-  zoo.JP_predemean = zoo.JP
-  zoo.JP = DEMEAN_COUNTRY(zoo.JP, JP_DEMEAN)
+  #JP_DEMEAN = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 1])
+  #JP_DETREND = names(df.JP_header['DEMEAN',df.JP_header['DEMEAN',] == 2])
+  #zoo.JP_predemean = zoo.JP
+  #zoo.JP = DEMEAN_COUNTRY(zoo.JP, JP_DEMEAN)
   
   #raw_pre1992 = window(zoo.JP$JPNVT0060, start = "1963-01-01", end = "1991-12-01")
   #raw_pre1992_demean = raw_pre1992 - mean(raw_pre1992)
@@ -819,6 +846,7 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_trai
 #####---------- Japan -----------------#######
 
 #Transform and Season Japan#
+zoo.JP_lag0_nodemean = transform_season_JP(include_TN = FALSE)
 zoo.JP_lag0_no = transform_season_JP(include_TN = FALSE)
 zoo.JP_lag0_all = transform_season_JP(include_TN = TRUE)
 
@@ -831,6 +859,10 @@ glm.JP_h3d3 = glm.predict_roc(zoo.JP_lag0, forecast = 3, country = "JP")
 
 glm.JP_h6d3 = glm.predict_roc(zoo.JP_lag0, forecast = 6, country = "JP")
 glm.JP_h12d4 = glm.predict_roc(zoo.JP_lag0, forecast = 12, country = "JP")
+
+#Best Logit Model
+glm.JP_in_all_h6 = glm.out_roll_all(zoo.JP_lag0, h = 6, model = 0, c = "JP")
+glm.JP_in_all_h12 = glm.out_roll_all(zoo.JP_lag0, h = 12, model = 0, c = "JP")
 
 #Boosting
 gbm.JP_h3d3 = gbm.forecast_lag(3,3,zoo.JP_lag0, "Japan", "bernoulli", train = 1.0) 
@@ -853,7 +885,7 @@ roc.glm.JP_h12_roll = glm.roc_roll(zoo.JP_lag0, forecast = 12, country = "JP")
 glm.out.OPTA0 = glm.out(zoo.JP_lag0, forecast = 0, country = "JP", varname = "OPTA", end_train = "1985-08-01")
 glm.out.OPTA3 = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "OPTA", end_train = "1985-08-01")
 glm.out.OPTA6 = glm.out(zoo.JP_lag0, forecast = 6, country = "JP", varname = "OPTA", end_train = "1985-08-01")
-glm.out.OPTA12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "OPTA", end_train = "1985-08-01")
+glm.out.OPTA12 = glm.out(zoo.JP_lag0_all, forecast = 12, country = "JP", varname = "OPTA", end_train = "1985-08-01")
 glm.out.JPN0015_12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTI0015", end_train = "1985-08-01")
 glm.out.JPNTK0011 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTK0011", end_train = "1985-08-01")
 
@@ -903,14 +935,17 @@ gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run
 gbm.JP_h3d3_roll_full361 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 361)
 
 #Boost Full No Lags
-gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", max_m = 4000, end_train = "1995-08-01")
-gbm.JP_h6d0_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
-gbm.JP_h12d0_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
+gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+gbm.JP_h6d0_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
+gbm.JP_h12d0_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
 
 gbm.JP_h3d0_roll_full_notankan = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 4000, end_train = "1995-08-01")
 gbm.JP_h3d0_roll_full_notankan400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
 gbm.JP_h6d0_roll_full_notankan400 = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
 gbm.JP_h12d0_roll_full_notankan400 = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+
+gbm.JP_h12d0_roll_full_tankan
+gbm.JP_h3d0_roll_full_tankan = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
 
 
 
@@ -941,9 +976,9 @@ gbm.JP_h3d3_roll_lead = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0[,CAB], 
 ##Analysis ####
 
 #plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
-plot(gbm.US_h3d3_roll_full2[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
-plot(gbm.US_h6d3_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
-plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
+plot(gbm.JP_h3d0_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.JP_h6d0_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
+plot(gbm.JP_h12d0_roll_full_tankan[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
 #####---------- United States -----------------#######
 
