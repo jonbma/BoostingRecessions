@@ -2,9 +2,18 @@
 #####---------- Japan -----------------#######
 
 #Transform and Season Japan#
-zoo.JP_lag0_NO = transform_season_JP(include_TN = FALSE)
-zoo.JP_lag0_TN = transform_season_JP(include_TN = TRUE, TN_SHORT = TRUE)
+zoo.JP_lag0_noTN = transform_season_JP(include_TN = FALSE)
+zoo.JP_lag0_medium = transform_season_JP(include_TN = TRUE, TN_SHORT = TRUE)
+zoo.JP_lag0_big = transform_season_JP(include_TN = TRUE, TN_SHORT = FALSE)
+zoo.JP_lag0 = transform_season_JP(include_TN = TRUE, TN_SHORT = TRUE)
 
+
+
+
+SHORT_LIST = c('JAPRECD','IPIRFG','IPIRFGMM','NEWJOB','NEWORD','NEWHOUSE','CONCONF','NIKKEICOM','INTSPREAD','GB10','IBORATE','STOCKPRIC','INVESTCLIM','OPTA','DISB')
+TANKAN_LIST = c('BC_ALL_A','BC_ALL_F','IL_ALL_A','IL_MAN_A','DS_MAN_A','DS_MAN_F','FIN_ALL_A','FIN_MAN_AL','EMP_ALL_A','EMP_ALL_F','EMP_MAN_A','EMP_MAN_F')
+SHORT_TN_LIST = c(SHORT_LIST, TANKAN_LIST)
+zoo.JP_lag0_short = zoo.JP_lag0_TN[,SHORT_TN_LIST]
 
 ##################In-Sample############################
 
@@ -30,7 +39,13 @@ print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4
 ###################Out-Sample##########################
 
 #Logit Roll
-glm.JP_h3_roc_roll = glm.roc_roll(zoo.JP_lag0, forecast = 3, country = "JP", varname = "OPTA", end_train = "1995-08-01")
+glm.JP_h3_roc_roll = glm.roc_roll(zoo.JP_lag0_TN, forecast = 3, country = "JP", varname = "NIKKEICOM")
+
+glm.JP_h12_roc_roll = glm.roc_roll(zoo.JP_lag0_TN, forecast = 12, country = "JP", varname = "NIKKEICOM")
+
+
+glm.JP_h3_roc_roll_ALL_TN = glm.roc_roll(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0096")
+
 
 #Logit Out-Of-Sample
 
@@ -40,9 +55,15 @@ glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", end = "199
 glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
 
 #All GLM Out Of Sample ROLL w/ ROC Score
-glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_roll_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_roll_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_roll_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+
+save(glm.out_roll_all_JP_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h3_4102015.RData")
+save(glm.out_roll_all_JP_h6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h6_4102015.RData")
+save(glm.out_roll_all_JP_h12, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h12_4102015.RData")
+
+
 
 #Boost Full No Lags
 gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
@@ -53,6 +74,24 @@ gbm.JP_h12d3_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_TN, r
 gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
 gbm.JP_h6d0_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
 gbm.JP_h12d0_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", m = 400, end_train = "1995-08-01")
+
+#Boost Big No Lags
+gbm.JP_h3d0_roll_big = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+gbm.JP_h6d0_roll_big = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+gbm.JP_h12d0_roll_big = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+
+
+
+
+#Boost Short No Lags
+gbm.JP_h3d0_roll_short = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+gbm.JP_h6d0_roll_short = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+gbm.JP_h12d0_roll_short = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
+
+
+
+
+
 
 gbm.JP_h3d0_roll_full_notankan = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 4000, end_train = "1995-08-01")
 gbm.JP_h3d0_roll_full_notankan400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_no, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")

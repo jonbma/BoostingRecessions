@@ -56,22 +56,28 @@ SA_COUNTRY <- function(zoo.COUNTRY, NSA_names)
   return(zoo.COUNTRY)
 }
 
-TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D, log_1D,log_2D)
+TRANSFORM_COUNTRY <- function(zoo.C, same, level_1D)
 {
-  #Same
-  zoo.C_same = zoo.C[,same]
-  
-  #Level First Difference
-  zoo.C_level_1D = diff(zoo.C[,level_1D], differences = 1)
-  
-  #Log First Difference
-  zoo.C_log_1D = zoo(apply(zoo.C[,log_1D], 2, Delt),time(zoo.C))
-  
-  #Log Transform Second Difference
-  zoo.C_log_2D = diff(log(zoo.C[,log_2D]), differences = 2)
-  
+
+    zoo.C_same = zoo.C[,same]  
+
+    #Level First Difference
+    zoo.C_level_1D = diff(zoo.C[,level_1D], differences = 1)
+    zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D)
+
+#   if(!is.null(log_1D))
+#   {
+#   #Log First Difference
+#   zoo.C_log_1D = zoo(apply(zoo.C[,log_1D], 2, Delt),time(zoo.C))
+#   zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D, zoo.C_log_1D, zoo.C_log_2D)
+#   }
+#   if(!is.null(log_2D))
+#   {
+#   #Log Transform Second Difference
+#   zoo.C_log_2D = diff(log(zoo.C[,log_2D]), differences = 2)
+#   zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D, zoo.C_log_1D, zoo.C_log_2D)
+#   }
   #Merge
-  zoo.C_lag0 = merge(zoo.C_same, zoo.C_level_1D, zoo.C_log_1D, zoo.C_log_2D)
   
   #Return All Merged for Lag = 0
   return(zoo.C_lag0)
@@ -308,11 +314,13 @@ approx_tankan_JP <- function(FULL = FALSE)
 }
 
 ## Transform Japan Function ##
-transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
+transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE, DATA_SHORT = TRUE)
 {
   
   #### Read in Data for Japan ####
-  strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL_TRUNC.csv")
+
+  strs.JP <- readLines("~/Google Drive/Independent Work/Data/Japan/JAPAN_ALL.csv")
+  
   df.JP <- read.csv(text=strs.JP,             # read from an R object rather than a file
                     skip=10,                # skip the first line
                     stringsAsFactors=FALSE
@@ -328,7 +336,13 @@ transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
   df.JP = date_COUNTRY(df.JP)
   zoo.JP = zoo_COUNTRY(df.JP)
   
-  #zoo.JP = window(zoo.JP, start = "1978-01-01", end = end(zoo.JP))
+#   if(DATA_SHORT == TRUE)
+#   {
+#     zoo.JP = zoo.JP[,1:15]
+#     df.JP = df.JP[,2:16]
+#     df.JP_header = df.JP_header[,2:16]
+#   }
+  
   #missmap(zoo.JP, main="Japan Data - Missings Map",  col=c("yellow", "black"), legend=TRUE)
   
   #Approximate couple missing values
@@ -356,14 +370,10 @@ transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
   
   same_JP = JP_var_names(name = "LEVEL")
   level_1D_JP = JP_var_names(name = "LEVEL_1D")
-  log_1D_JP  = JP_var_names(name = "LOG_1D")
-  log_2D_JP = JP_var_names(name = "LOG_2D")
+  #log_1D_JP  = JP_var_names(name = "LOG_1D")
+  #log_2D_JP = JP_var_names(name = "LOG_2D")
   
-  log_transform <-function(zoo.C, log_0D)
-  {
-    return(log(zoo.C[,log_0D]))
-  }
-  zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP, log_1D_JP, log_2D_JP)
+  zoo.JP_lag0 = TRANSFORM_COUNTRY(zoo.JP, same_JP, level_1D_JP)
   
   if(ncol(zoo.JP_lag0) == ncol(zoo.JP))
   {
@@ -373,6 +383,8 @@ transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
   {
     stop("Uh, we don't have same number of columns before and after transform. Double check to make sure non-transformed in dataset has LEVEL and NOT 0")
   }
+
+
   
   #Merge Tankan Dataset
   
@@ -392,20 +404,6 @@ transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
   
   #Remove NA from original data. Should only remove row 1 because of log_1D  
   zoo.JP_lag0 = na.omit(zoo.JP_lag0)
-  #missmap(zoo.JP_lag0, main="Japan Data - Missings Map",  col=c("yellow", "black"), legend=TRUE)
-  
-  #Compare Original and Transformed
-  ncol(zoo.JP_lag0) #Have duplicates, also check for NaN
-  nrow(zoo.JP_lag0) 
-  ncol(zoo.JP) 
-  nrow(zoo.JP) 
-  
-  ### Summary of Data ###
-  
-  #Japan
-  autoplot.zoo(zoo.JP_lag0$JAPRECD, xlab = "Year", ylab = "Recession", col = "Red", main = "US Recessions 1978-2014")
-  #Look at Interest Rate Spread versus recession
-  autoplot.zoo(zoo.JP_lag0$INTSPREAD)
   
   return(zoo.JP_lag0)
 }
@@ -491,7 +489,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, end_train = "1985-08-01")
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, input_end = "1985-08-01")
 {
   h = forecast
   d = lags
@@ -690,7 +688,7 @@ warning_train_end <- function(country, input_end)
   {
     if(!input_end == "1995-08-01")
     {
-      print("JP train end date not 1995-08-01, automatically correcting")
+      #print("JP train end date not 1995-08-01, automatically correcting")
     }
     train_end = "1995-08-01"
   }
@@ -698,7 +696,7 @@ warning_train_end <- function(country, input_end)
   {
     if(!input_end == "1985-08-01")
     {
-      print("US train end date not 1985-08-01,  automatically correcting")
+      #print("US train end date not 1985-08-01,  automatically correcting")
     }
     train_end = "1985-08-01"
   }
@@ -766,12 +764,15 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
                    frequency = 12)
   
   #Plot Prediction Against ACTUAL Recession
+  if(graph == TRUE)
+  {
   plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
   plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
        main = paste(c, ":", varname, "GLM Roll Forecast",h,"Months"), 
        axes = TRUE, 
        ylim=c(0,1))
+  }
 
   return(roc(zoo.REC, zoo.pred))
 }
@@ -910,4 +911,3 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_en
   }
   return(roc(zoo.REC,pred_os))
 }
-
