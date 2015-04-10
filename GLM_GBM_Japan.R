@@ -30,64 +30,24 @@ print(list(gbm.JP_h0d3[index],gbm.JP_h3d3[index],gbm.JP_h6d3[index],gbm.JP_h12d4
 ###################Out-Sample##########################
 
 #Logit Roll
-roc.glm.JP_h0_roll = glm.roc_roll(zoo.JP_lag0, forecast = 0, country = "JP")
-roc.glm.JP_h3_roll = glm.roc_roll(zoo.JP_lag0, forecast = 3, country = "JP", varname = "PMNO")
-
-roc.glm.JP_h6_roll = glm.roc_roll(zoo.JP_lag0, forecast = 6, country = "JP")
-roc.glm.JP_h12_roll = glm.roc_roll(zoo.JP_lag0, forecast = 12, country = "JP")
+glm.JP_h3_roc_roll = glm.roc_roll(zoo.JP_lag0, forecast = 3, country = "JP", varname = "OPTA", end_train = "1995-08-01")
 
 #Logit Out-Of-Sample
-glm.out.OPTA0 = glm.out(zoo.JP_lag0, forecast = 0, country = "JP", varname = "OPTA", end_train = "1985-08-01")
-glm.out.OPTA3 = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "OPTA", end_train = "1985-08-01")
-glm.out.OPTA6 = glm.out(zoo.JP_lag0, forecast = 6, country = "JP", varname = "OPTA", end_train = "1985-08-01")
-glm.out.OPTA12 = glm.out(zoo.JP_lag0_all, forecast = 12, country = "JP", varname = "OPTA", end_train = "1985-08-01")
-glm.out.JPN0015_12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTI0015", end_train = "1985-08-01")
-glm.out.JPNTK0011 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTK0011", end_train = "1985-08-01")
 
-glm.out.RAWMATERIAL_nomean = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNVT0060_NOMEAN", end_train = "1985-08-01")
-glm.out.RAWMATERIAL = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNVT0060", end_train = "1985-08-01")
+#All GLM Out Of Sample STANDARD w/ ROC Score
+glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
 
-#glm.out.JPNTI0003_RAW = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "JPNTI0003_RAW", end_train = "1985-08-01", graph = TRUE)
-glm.out.JPNTI0003 = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "JPNTI0003", end_train = "1985-08-01", graph = TRUE)
+#All GLM Out Of Sample ROLL w/ ROC Score
+glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
 
-glm.out.TANKAN = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "JPNTK1954", end_train = "1985-08-01", graph = TRUE)
-glm.out.TANKAN3 = glm.out(zoo.JP_lag0, forecast = 3, country = "JP", varname = "JPNTK0118", end_train = "1985-08-01", graph = TRUE)
-
-#Logit-Out-Of-Sample H = 12
-glm.out.IR12 = glm.out(zoo.JP_lag0, forecast = 12, country = "JP", varname = "IRGSTBJ", end_train = "1990-08-01", graph = TRUE)
-
-
-
-#All GLM Out Of Sample w/ ROC Score
-glm.out_all_JP_h3_19950801 = glm.out_all_JP_h3
-glm.out_all_JP_h6_19950801 = glm.out_all_JP_h6
-glm.out_all_JP_h12_19950801 = glm.out_all_JP_h12
-
-
-glm.out_all_JP_h0 = glm.out_all(zoo.JP_lag0, h = 0, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE)
-glm.out_all_JP_h3 = glm.out_all(zoo.JP_lag0, h = 3, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE)
-glm.out_all_JP_h6 = glm.out_all(zoo.JP_lag0, h = 6, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE)
-glm.out_all_JP_h12 = glm.out_all(zoo.JP_lag0, h = 12, c = "JP", end = "1995-1-01", graph_param = FALSE, all_col = TRUE)
-
-
-#Boost Mini
-gbm.JP_h0d3_roll = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = FALSE, iter = 10)
-gbm.JP_h3d3_roll = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = FALSE, iter = 20)
-gbm.JP_h6d3_roll = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = FALSE, iter = 80)
-gbm.JP_h12d4_roll = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = FALSE, iter = 50)
-
-#Boost Full
-#gbm.JP_h0d3_roll_full = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
-gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400, train_end )
-gbm.JP_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
-gbm.JP_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, country = "JP", m = 400)
-
-gbm.JP_h0d3_roll_full2 = gbm.roc_roll(forecast = 0, lags = 3, zoo.JP_lag0, run.full = TRUE)
-gbm.JP_h3d3_roll_full2 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 400)
-gbm.JP_h6d3_roll_full2 = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 400)
-gbm.JP_h12d4_roll_full2 = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0, run.full = TRUE, m = 400)
-
-gbm.JP_h3d3_roll_full361 = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0, run.full = TRUE, m = 361)
+#Boost Full No Lags
+gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+gbm.JP_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+gbm.JP_h12d3_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
 
 #Boost Full No Lags
 gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")

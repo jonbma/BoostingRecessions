@@ -109,26 +109,30 @@ elapsed_months <- function(end_date, start_date) {
 }
 
 
-plot_zoo_REC <- function(zoo.varname, country)
+plot_zoo_REC <- function(zoo.C, varname, country)
 {
   if(country == "US")
   { 
     getSymbols("USRECD",src="FRED")
     RECD = USRECD
   }
-  else
+  else if(country == "JP")
   {
     getSymbols("JPNRECD",src="FRED")  
     RECD = JPNRECD
   }
-  varname.df <- data.frame(date= index(zoo.varname), value = as.vector(zoo.varname))
+  else
+  {
+    stop("No valid country name provided!")
+  }
+  varname.df <- data.frame(date= index(zoo.C[,varname]), value = as.vector(zoo.C[,varname]))
   start <- index(RECD[which(diff(RECD)==1)])
   end   <- index(RECD[which(diff(RECD)==-1)-1])
   end <- c(end, as.Date("2014-12-01"))
   reccesion.df <- data.frame(start=start, end=end)
   recession.df <- subset(reccesion.df, start >= min(varname.df$date))
   varname.df <- subset(varname.df, date >= start[1])
-  g <- ggplot(varname.df)+geom_line(data=varname.df, aes(x=date,y=value)) + theme_bw() + geom_rect(data=recession.df, aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), fill="red", alpha=0.5) 
+  g <- ggplot(varname.df)+geom_line(data=varname.df, aes(x=date,y=value)) + theme_bw() + geom_rect(data=recession.df, aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), fill="red", alpha=0.5)+xlab("Time")+ylab(paste(varname))+ggtitle(paste(country,":", varname, "and recession"))
   return(g)
 }
 
@@ -276,7 +280,7 @@ approx_tankan_JP <- function(FULL = FALSE)
   }
   else
   {
-    print("uhhh didn't specify if you want the full TANKAN")
+    stop("uhhh didn't specify if you want the full TANKAN")
   }
   df.JP_TN <- read.csv(text=strs.tankan,             # read from an R object rather than a file
                        skip=1,                # skip the first line
@@ -367,7 +371,7 @@ transform_season_JP <- function(include_TN = TRUE, TN_SHORT = TRUE)
   }
   else
   {
-    print("Uh, we don't have same number of columns before and after transform. Double check to make sure non-transformed in dataset has LEVEL and NOT 0")
+    stop("Uh, we don't have same number of columns before and after transform. Double check to make sure non-transformed in dataset has LEVEL and NOT 0")
   }
   
   #Merge Tankan Dataset
@@ -508,7 +512,8 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   
   train_start = start(zoo.C_lagRESULT)
-  train_end = end_train
+  #train_end = end_train
+  train_end = warning_train_end(country, input_end)
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
@@ -679,21 +684,40 @@ glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
   }
 }
 
-gbm.US_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US")
-gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US")
-glm.roll.US_h3 = glm.roc_roll(zoo.US_lag0, forecast = 3, varname = "PMNO", country = "US")
-glm.out.US_h3 = glm.out(zoo.US_lag0, forecast = 3, varname = "PMNO", country = "US", end_train = "1985-08-01")
+warning_train_end <- function(country, input_end)
+{
+  if(country == "JP")
+  {
+    if(!input_end == "1995-08-01")
+    {
+      print("JP train end date not 1995-08-01, automatically correcting")
+    }
+    train_end = "1995-08-01"
+  }
+  else if(country == "US")
+  {
+    if(!input_end == "1985-08-01")
+    {
+      print("US train end date not 1985-08-01,  automatically correcting")
+    }
+    train_end = "1985-08-01"
+  }
+  return(train_end)
+}
+
 
 ##GLM Rolling Estimation
-glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, end_train = "1985-08-01")
+glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, input_end = "1985-08-01", graph = TRUE)
 {
+  train_end = warning_train_end(country, input_end)
   h = forecast
+  forward = sum(-h,-1)
   c = country
   train_start = start(zoo.C_lag0)
-  train_end = end_train
+ 
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lag0)
-  
+    
   run = elapsed_months(test_end, test_start)
   pred_final = vector("numeric")
   
@@ -724,7 +748,7 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
     }
     else
     {
-      print("Uh oh, no country specified or incorrect spelling")
+      stop("Uh oh, no country specified or incorrect spelling")
     }
     #Forecast using LAST time to forecast NEXT h period
     pred_final[i] =  predict.glm(glm.C,
@@ -749,10 +773,10 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
        axes = TRUE, 
        ylim=c(0,1))
 
-  return(roc(ts.REC, ts.pred))
+  return(roc(zoo.REC, zoo.pred))
 }
 #GLM ALL Out-Of-Sample or ALL Roll
-glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col = TRUE, model = 1)
 {
   name_all = colnames(zoo.C_lag0)[2:ncol(zoo.C_lag0)]
   df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0)
@@ -796,7 +820,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param
   {
     for(i in 1:total)
     {
-      glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i])
+      glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], graph = graph_param)
       #df.store_all[,name_all[i]] = 
       df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
       if(i %% 10 == 0)
@@ -805,7 +829,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param
   }
   else
   {
-    print("umm model only goes 0,1,2")
+    stop("umm model only goes 0,1,2")
   }
   time_spent = proc.time() - ptm
   
@@ -817,11 +841,12 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, end = "1985-08-01",graph_param
   
 #GLM Out-Of-Sample
 
-glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_train = "1985-08-01", logit = "TRUE", graph = "TRUE")
+glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_end = "1985-08-01", logit = "TRUE", graph = "TRUE")
 {
   forward <- sum(-1,-forecast)
   train_start = start(zoo.C_lag0)
-  train_end = end_train
+  train_end = warning_train_end(country, input_end)
+  #train_end = end_train
   test_start = train_end
   test_end = end(zoo.C_lag0)
   
@@ -875,7 +900,7 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_trai
   }
   else
   {
-    print("Uh oh, no country specified or incorrect spelling")
+    stop("Uh oh, no country specified or incorrect spelling")
   }
   if(graph == TRUE)
   {
@@ -885,3 +910,4 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", end_trai
   }
   return(roc(zoo.REC,pred_os))
 }
+
