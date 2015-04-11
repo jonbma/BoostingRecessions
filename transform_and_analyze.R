@@ -461,25 +461,24 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
                  type="response")
   
   #Plot Prediction Against Actual Recession
-  begin_month = as.numeric(format(start(REC_lagRESULT),"%m"))
-  begin_year = as.numeric(format(start(REC_lagRESULT),"%Y"))
-  end_month = as.numeric(format(end(REC_lagRESULT),"%m"))
-  end_year = as.numeric(format(end(REC_lagRESULT),"%Y"))
-  ts.REC = ts(REC_lagRESULT, start = c(begin_year, begin_month), end=c(end_year,end_month), frequency = 12)
-  ts.pred = ts(pred, start = c(begin_year,begin_month), end=c(end_year,end_month), frequency = 12)
-  plot(ts.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-  par(new=TRUE)
-  
-  
+  from <- as.Date(start(zoo.C_lagRESULT))
+  to <- as.Date(end(zoo.C_lagRESULT))
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred, months)
+  zoo.REC = window(REC_lagRESULT, 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
+    
   #Use GG Plot here and include what is h and d
-  plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  #plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
   
   #Calculate ROC score
-  auc_gbm = roc(ts.REC,ts.pred)[9]
+  auc_gbm = roc(zoo.REC,zoo.pred)[9]
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
   #return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
-  return(list(summary(gbm.C),best.iter_cv,auc_gbm,ts.pred))
+  return(list(summary(gbm.C),best.iter_cv,auc_gbm,zoo.pred))
 }
 
 #Rolling Estimate of GBM
