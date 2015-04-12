@@ -25,6 +25,8 @@ library(lubridate)
 library(pracma)
 library(forecast)
 library(scoring)
+library(foreach)
+library(doParallel)
 #library(tis)
 setwd("~/Google Drive/Independent Work/Code")
 source("gw.test.R")
@@ -162,7 +164,16 @@ plot_transforms <- function(zoo.C, varname, country)
 ################### Read in Data and Clean ######################
 
 ### Read In Data for US ####
-
+read_berge_US <- function()
+{
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
+  df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
+                    skip=0,                
+                    stringsAsFactors=FALSE)
+  df.US = date_COUNTRY(df.US)
+  zoo.US = zoo_COUNTRY(df.US)
+  return(zoo.US)
+}
 
 ### US Transform Season Function ### 
 transform_season_US <- function(rec = 'D')
@@ -478,6 +489,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   
   #Calculate ROC score
   roc_gbm = roc(zoo.REC,zoo.pred)
+  autoplot(zoo.pred)
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
   #return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
@@ -491,7 +503,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, input_end = "1985-08-01")
+gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, input_end = "1985-08-01", manual_end = FALSE)
 {
   h = forecast
   d = lags
@@ -513,7 +525,14 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   
   train_start = start(zoo.C_lagRESULT)
   #train_end = end_train
-  train_end = warning_train_end(country, input_end)
+  if(main_end == FALSE)
+  {
+    train_end = warning_train_end(country, input_end)
+  }
+  else
+  {
+    train_end = input_end
+  }
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
@@ -538,9 +557,14 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
   
   #Time
   ptm <- proc.time()
-
+  iters <- sum(run,1)
+  
+  cl<-makeCluster(4)
+  registerDoParallel(cl)
+  
   #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
-  for(i in 1:sum(run,1))
+  #for(i in 1:iters)
+  foreach(icount(iters)) %dopar%
   {
     #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
     start_shift  <- months(i-1) + as.Date(train_start)
@@ -574,7 +598,7 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
                 n.trees = m,
                 verbose = FALSE)
     }
-    
+    stopCluster(cl)
       
     #Get the summary of GBM model
     sum_gbm.C = summary(gbm.C, plotit= FALSE)
