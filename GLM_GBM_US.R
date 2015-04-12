@@ -31,23 +31,29 @@ glm.US_in_all_h12 = glm.out_roll_all(zoo.US_lag0, h = 12, model = 0, c = "US")
 
 #Boost
 gbm.US_in_h3d0_big = gbm.forecast_lag(3,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
 
 gbm.US_in_h6d0_big = gbm.forecast_lag(6,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
 
 gbm.US_in_h12d0_big = gbm.forecast_lag(12,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
 
 
 ################## Out-Of-Sample ###################
 #Logit Roll
 glm.US_h3_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 3, varname = "PMNO", country = "US")
-glm.US_h6_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
+glm.US_h6_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "EXRUK", country = "US")
+glm.US_h6_roll_best_2 = glm.roc_roll2(zoo.US_lag0_big, forecast = 6, varname = "EXRUK", country = "US")
+
+
+
 glm.US_h12_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 12, varname = "SFYGT5", country = "US")
 
-glm.US_h6_roll_GM6 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "SFYGM6", country = "US")
-glm.US_h12_roll_SFYGT5 = glm.roc_roll(zoo.US_lag0_big, forecast = 12, varname = "SFYGT5", country = "US")
+#glm.US_h6_roll_GM6 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "SFYGM6", country = "US")
+#glm.US_h6_roll_GT5 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "SFYGT5", country = "US")
+#glm.US_h6_roll_PMNO = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
+
 
 #Logit ALL Out-of_sample
 glm.out_all_US_h3 = glm.out_roll_all(zoo.US_lag0, h = 3, c = "US", graph_param = FALSE, all_col = TRUE)
@@ -57,17 +63,20 @@ glm.out_all_US_h12 = glm.out_roll_all(zoo.US_lag0, h = 12, c = "US",  graph_para
 #Logit ALL Roll
 glm.out_all_roll_USh3 = glm.out_all(zoo.US_lag0, h =3, c = "US", all_col = TRUE, model = 2)
 glm.out_all_roll_USh6 = glm.out_roll_all(zoo.US_lag0, h =6, c = "US", all_col = TRUE, model = 2)
-glm.out_all_roll_USh12 = glm.out_all(zoo.US_lag0, h =12, c = "US",all_col = TRUE, model = 2)
+glm.out_all_roll_USh12 = glm.out_roll_all(zoo.US_lag0, h =12, c = "US",all_col = TRUE, model = 2)
 
 #Big Boost: 1985-08-01
-gbm.US_h3d3_roll_full = #gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
+gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US")
 
+save(glm.out_all_roll_USh6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_41215.RData")
+
+
 #Big Boost: Serena 
-gbm.US_h3d3_roll_serena = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US", input_end = "1977-02-01")
-gbm.US_h6d3_roll_serena = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US", input_end = "1977-02-01")
-gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US", input_end = "1977-02-01")
+gbm.US_h3d3_roll_serena = gbm.roc_roll(forecast = 3, lags = 3, zoo.C_lag0 = zoo.US_lag0_big, run.full = TRUE, country = "US", input_end = "1977-02-01")
+gbm.US_h6d3_roll_serena = gbm.roc_roll(forecast = 6, lags = 3, zoo.C_lag0 = zoo.US_lag0, run.full = TRUE, country = "US", input_end = "1977-02-01")
+gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.C_lag0 = zoo.US_lag0_big, run.full = TRUE, country = "US", input_end = "1977-02-01")
 
 save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
 save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
@@ -84,9 +93,19 @@ gbm.US_h6d0_roll_travis = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_short
 gbm.US_h12d0_roll_travis = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_short, run.full = TRUE, country = "US", m = 1000)
 
 #My Small Boost
-gbm.US_h3d0_roll_CB = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", m = 400)
-gbm.US_h6d0_roll_CB = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", m = 400)
-gbm.US_h12d0_roll_CB = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", m = 400)
+gbm.US_h3d0_roll_CB = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
+gbm.US_h3d0_roll_CB5 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
+gbm.US_h3d3_roll_CB5 = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
+
+
+
+gbm.US_h6d0_roll_CB = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
+gbm.US_h12d0_roll_CB = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
+
+gbm.US_h6d3_roll_CB = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
+gbm.US_h12d4_roll_CB = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
+
+
 
 #Boost with 1 Variable
 gbm.US_h12d3_roll_SFYGT10 = gbm.roc_roll(forecast = 12, lags = 3,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMP')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
