@@ -22,6 +22,7 @@ glm.in_JP_h3 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname
 glm.in_JP_h6 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0199")
 glm.in_JP_h12 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0118")
 
+glm.roc_in(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
 #Best Logit Model
 #glm.JP_in_all_h6 = glm.out_roll_all(zoo.JP_lag0, h = 6, model = 0, c = "JP")
 #glm.JP_in_all_h12 = glm.out_roll_all(zoo.JP_lag0, h = 12, model = 0, c = "JP")
@@ -38,26 +39,46 @@ gbm.JP_h12d0_short = gbm.forecast_lag(12,0,zoo.JP_lag0_short, "Japan", "bernoull
 
 ###################Out-Sample##########################
 
-#Logit Roll
-glm.JP_h3_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0096")
-
 #Logit Standard
 
+glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0187")
+glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
+
+glm.JP_h3_out_best = glm.out(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0595")
+glm.JP_h6_out_best = glm.out(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0595")
+glm.JP_h12_out_best = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
+
+
+#Logit Roll
+glm.JP_h3_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0096")
+glm.JP_h6_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0199")
+glm.JP_h12_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
+#glm.JP_h12_roll_NIKKEI = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "NIKKEICOM")
+
+glm.JP_h12_roll_JPNTK0959 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
+glm.JP_h12_roll_JPNTK0595 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
+glm.JP_h12_roll_JPNTK0349 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0349")
+
+
+
 #All GLM Out Of Sample STANDARD w/ ROC Score
-glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
-glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
-glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", end = "1995-08-01", graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_big, h = 3, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_big, h = 6, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_big, h = 12, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
 
 #All GLM Out Of Sample ROLL w/ ROC Score
 glm.out_roll_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
 glm.out_roll_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
 glm.out_roll_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_roll_all_JP_h12_big = glm.out_roll_all(zoo.JP_lag0_BIG_TN_ONLY, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+
 
 save(glm.out_roll_all_JP_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h3_4102015.RData")
 save(glm.out_roll_all_JP_h6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h6_4102015.RData")
 save(glm.out_roll_all_JP_h12, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h12_4102015.RData")
+save(glm.out_roll_all_JP_h12_big, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h12_big_4112015.RData")
 
-glm.out_roll_all_JP_h12_BIG_TN = glm.out_roll_all(zoo.JP_lag0_BIG_TN_ONLY, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+
 
 
 

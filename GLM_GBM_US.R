@@ -2,30 +2,40 @@
 #####---------- United States -----------------#######
 
 #Transform and Season#
-zoo.US_lag0 = transform_season_US(df.US)
+zoo.US_lag0 = transform_season_US()
+zoo.US_lag0_big = zoo.US_lag0
+zoo.US_lag0_short = read_berge_US()
 
 ############## In-Sample #####################
 #Logit
-roc.glm.US_h0d0 = glm.predict_roc(zoo.US_lag0, forecast = 0, country = "US")
-roc.glm.US_h3d3 = glm.predict_roc(zoo.US_lag0, forecast = 3, country = "US")
-roc.glm.US_h6d3 = glm.predict_roc(zoo.US_lag0, forecast = 6, country = "US")
-roc.glm.US_h12d4 = glm.predict_roc(zoo.US_lag0, forecast = 12, country = "US")
+glm.in_US_h3 = glm.roc_in(zoo.US_lag0, forecast = 3, country = "US", varname = "SFYGM3")
+glm.in_US_h6 = glm.roc_in(zoo.US_lag0, forecast = 6, country = "US", varname = "SFYGT5")
+glm.in_US_h12 = glm.roc_in(zoo.US_lag0, forecast = 12, country = "US", varname = "SFYGT10")
+
+
+glm.roc_in(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
+
+glm.US_in_all_h3 = glm.out_roll_all(zoo.US_lag0, h = 3, model = 0, c = "US")
+glm.US_in_all_h6 = glm.out_roll_all(zoo.US_lag0, h = 6, model = 0, c = "US")
+glm.US_in_all_h12 = glm.out_roll_all(zoo.US_lag0, h = 12, model = 0, c = "US")
+
 
 #Boost
-gbm.US_h0d3 = gbm.forecast_lag(0,3,zoo.US_lag0, "United States", train = 1.0)
-gbm.US_h3d3 = gbm.forecast_lag(3,3,zoo.US_lag0, "United States", train = 1.0)
-gbm.US_h6d3 = gbm.forecast_lag(6,3,zoo.US_lag0, "United States", train = 1.0)
-gbm.US_h12d4= gbm.forecast_lag(forecast = 12,lags = 4,zoo.US_lag0, "United States", train = 1.0)
+gbm.US_in_h3d0_big = gbm.forecast_lag(3,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
 
-#Boost w/ no lags
-gbm.US_h3d0 = gbm.forecast_lag(3,0,zoo.US_lag0, "United States", train = 1.0)
+gbm.US_in_h6d0_big = gbm.forecast_lag(6,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
+
+gbm.US_in_h12d0_big = gbm.forecast_lag(12,0,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_short, "US", "bernoulli", train = 1.0) 
+
 
 ################## Out-Of-Sample ###################
 #Logit Roll
-glm.roll.US_h3_PMNO
-glm.roll.US_h3 = glm.roc_roll(zoo.US_lag0, forecast = 3, varname = "PMNO", country = "US")
-glm.roll.US_h6 = glm.roc_roll(zoo.US_lag0, forecast = 6, varname = "SFYGT5", country = "US")
-glm.roll.US_h12 = glm.roc_roll(zoo.US_lag0, forecast = 12, country = "US", varname = "SFYGT10")
+glm.US_h3_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 3, varname = "PMNO", country = "US")
+glm.US_h6_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
+glm.US_h12_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 12, varname = "SFYGT5", country = "US")
 
 #Logit Out-Of-Sample
 glm.roll.termspread3 = glm.roc_roll(zoo.US_lag0, forecast = 3, country = "US", varname = "TERMSPREAD")
@@ -36,6 +46,8 @@ glm.out.termspread17 = glm.out(zoo.US_lag0, forecast = 17, country = "US", varna
 
 glm.roll.pmp3 = glm.roc_roll(zoo.US_lag0, forecast = 3, country = "US", varname = "PMP")
 glm.out.pmp3 = glm.out(zoo.US_lag0, forecast = 3, country = "US", varname = "PMP", end_train = "1985-08-01")
+
+
 
 #Logit ALL Out-of_sample
 glm.out_all_US_h0 = glm.out_all(zoo.US_lag0, h = 0, c = "US", end = "1985-08-01", graph_param = FALSE, all_col = TRUE)
@@ -115,5 +127,15 @@ head(pred_final)
 
 load("~/Google Drive/Independent Work/Code/save_pred.RData")
 
+
+#Reproduce Liu and Moench Results
+glm.out.termspread3 = glm.out(zoo.US_lag0_liu, forecast = 3, country = "US", varname = "TERMSPREAD")
+zoo.US_lag0_liu = window(zoo.US_lag0, start = "1959-01-01", end = "2011-12-01")
+
+glm.out(zoo.US_lag0_liu, forecast = 2, country = "US", varname = "TERMSPREAD")
+glm.out(zoo.US_lag0_liu, forecast = 5, country = "US", varname = "TERMSPREAD")
+glm.out(zoo.US_lag0_liu, forecast = 11, country = "US", varname = "TERMSPREAD")
+glm.out(zoo.US_lag0_liu, forecast = 17, country = "US", varname = "TERMSPREAD")
+glm.out(zoo.US_lag0_liu, forecast = 23, country = "US", varname = "TERMSPREAD")
 
 

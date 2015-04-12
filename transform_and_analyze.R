@@ -23,9 +23,12 @@ library(BMS)
 library(mboost)
 library(lubridate)
 library(pracma)
+library(forecast)
+library(scoring)
 #library(tis)
 setwd("~/Google Drive/Independent Work/Code")
 source("gw.test.R")
+source("multiplot.R")
 
 ### Functions We'll Need ###
 
@@ -474,11 +477,11 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   #plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
   
   #Calculate ROC score
-  auc_gbm = roc(zoo.REC,zoo.pred)[9]
+  roc_gbm = roc(zoo.REC,zoo.pred)
   #png(filename="~/Google Drive/Independent Work/Writing/Graphs/USH3D3_V2.png")
   #dev.off()
   #return(list(roc(ts.REC,ts.pred)[9], ts.pred, summary(gbm.C)[,1], summary(gbm.C)[,2]))
-  return(list(summary(gbm.C),best.iter_cv,auc_gbm,zoo.pred))
+  return(list(summary(gbm.C),best.iter_cv,roc_gbm,zoo.pred))
 }
 
 #Rolling Estimate of GBM
@@ -660,9 +663,10 @@ gbm.roc_roll <- function(forecast = 0, lags = 3, zoo.C_lag0,  country, distr = "
 glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
 {
   h = forecast
+  forward = sum(-h,-1)
   if(country == "US")
   {
-    glm.C_h = eval(substitute(dyn$glm(USRECD ~ lag(variable, sum(-h,-1)), 
+    glm.C_h = eval(substitute(dyn$glm(USRECD ~ lag(variable, forward), 
               data = zoo.C_lag0, 
               family = "binomial"),list(variable = as.name(varname))))
     pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
@@ -671,7 +675,7 @@ glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
   }
   else if(country == "JP")
   {
-    glm.C_h = eval(substitute(dyn$glm(JAPRECD ~ lag(variable, sum(-h,-1)), 
+    glm.C_h = eval(substitute(dyn$glm(JAPRECD ~ lag(variable, forward), 
                               data = zoo.C_lag0, 
                               family = "binomial"),list(variable = as.name(varname))))
     
@@ -730,7 +734,7 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
     if(c == "US")
     {
     glm.C = eval(substitute(
-              dyn$glm(USRECD ~ lag(variable, sum(-h,-1)), 
+              dyn$glm(USRECD ~ lag(variable, forward), 
               data = zoo.C_shift, 
               family = "binomial"),
               list(variable = as.name(varname))))
@@ -808,7 +812,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
   {
     for(i in 1:total)
     {
-      glm.out_model = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], end_train = end, graph = graph_param)
+      glm.out_model = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], input_end = end, graph = graph_param)
       #df.store_all[,name_all[i]] = 
       df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
       if(i %% 10 == 0)
