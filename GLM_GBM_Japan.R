@@ -7,12 +7,10 @@ zoo.JP_lag0_big = transform_season_JP(include_TN = TRUE, TN_SHORT = FALSE)
 zoo.JP_lag0 = transform_season_JP(include_TN = TRUE, TN_SHORT = TRUE)
 zoo.JP_lag0_BIG_TN_ONLY <- zoo.JP_lag0_big[,c(1,94:362)]
 
-
-
 SHORT_LIST = c('JAPRECD','IPIRFG','IPIRFGMM','NEWJOB','NEWORD','NEWHOUSE','CONCONF','NIKKEICOM','INTSPREAD','GB10','IBORATE','STOCKPRIC','INVESTCLIM','OPTA','DISB')
 TANKAN_LIST = c('BC_ALL_A','BC_ALL_F','IL_ALL_A','IL_MAN_A','DS_MAN_A','DS_MAN_F','FIN_ALL_A','FIN_MAN_AL','EMP_ALL_A','EMP_ALL_F','EMP_MAN_A','EMP_MAN_F')
 SHORT_TN_LIST = c(SHORT_LIST, TANKAN_LIST)
-zoo.JP_lag0_short = zoo.JP_lag0_TN[,SHORT_TN_LIST]
+zoo.JP_lag0_short = zoo.JP_lag0_medium[,SHORT_TN_LIST]
 
 ##################In-Sample############################
 
@@ -39,7 +37,6 @@ gbm.JP_h12d0_short = gbm.forecast_lag(12,0,zoo.JP_lag0_short, "Japan", "bernoull
 ###################Out-Sample##########################
 
 #Logit Standard
-
 glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0187")
 glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
 
@@ -47,18 +44,10 @@ glm.JP_h3_out_best = glm.out(zoo.JP_lag0_big, forecast = 3, country = "JP", varn
 glm.JP_h6_out_best = glm.out(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0595")
 glm.JP_h12_out_best = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
 
-
 #Logit Roll
 glm.JP_h3_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0096")
 glm.JP_h6_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0199")
 glm.JP_h12_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
-#glm.JP_h12_roll_NIKKEI = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "NIKKEICOM")
-
-glm.JP_h12_roll_JPNTK0959 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
-glm.JP_h12_roll_JPNTK0595 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
-glm.JP_h12_roll_JPNTK0349 = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0349")
-
-
 
 #All GLM Out Of Sample STANDARD w/ ROC Score
 glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_big, h = 3, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)

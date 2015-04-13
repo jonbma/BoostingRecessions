@@ -89,21 +89,21 @@ JP_in_logit_h12 <- plot_zoo_obj(glm.in_JP_h12[[11]],
 
 US_in_logit_h3 <- plot_zoo_obj(glm.in_US_h3[[11]], 
                                roc = glm.in_US_h3[[9]],
-                               varname = "PMNO", 
+                               varname = "SFYGM3", 
                                horizon = 3, 
                                IN = TRUE, 
                                LARGE = TRUE, JP = FALSE, BOOST = FALSE)
 
 US_in_logit_h6 <- plot_zoo_obj(glm.in_US_h6[[11]], 
                                roc = glm.in_US_h6[[9]],
-                               varname = "JPNTK0199", 
+                               varname = "SFYGT5", 
                                horizon = 6, 
                                IN = TRUE, 
                                LARGE = TRUE, JP = FALSE, BOOST = FALSE)
 
 US_in_logit_h12 <- plot_zoo_obj(glm.in_US_h12[[11]], 
                                 roc = glm.in_US_h12[[9]],
-                                varname = "JPNTK1954", 
+                                varname = "SFYGT10", 
                                 horizon = 12, 
                                 IN = TRUE, 
                                 LARGE = TRUE, JP = FALSE, BOOST = FALSE)
@@ -226,8 +226,8 @@ JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_JPNTK0959[[11]],
                              BOOST = FALSE)
 
 
-US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[11]],
-                                roc = glm.US_h3_roll_best[9],
+US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[2]],
+                                roc = glm.US_h3_roll_best[[3]][9],
                                 varname = "PMNO", 
                                 horizon = 3, 
                                 IN = FALSE, 
@@ -235,17 +235,17 @@ US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[11]],
                                 JP = FALSE, 
                                 BOOST = FALSE)
 
-US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[11]],
-                                roc = glm.US_h6_roll_best[9],
-                                varname = "EXRUK", 
+US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[2]],
+                                roc = glm.US_h6_roll_best[[3]][9],
+                                varname = "SFYGT5", 
                                 horizon = 6, 
                                 IN = FALSE, 
                                 LARGE = TRUE, 
                                 JP = FALSE, 
                                 BOOST = FALSE)
 
-US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_roll_best[[11]],
-                                 roc = glm.US_h12_roll_best[9],
+US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_roll_best[[2]],
+                                 roc = glm.US_h12_roll_best[[3]][9],
                                  varname = "SFYGT5", 
                                  horizon = 12, 
                                  IN = FALSE, 
@@ -315,21 +315,21 @@ JP_out_boost_small_h12 <- plot_zoo_obj(gbm.JP_h12d0_roll_short[[2]],
                                    LARGE = FALSE)
 
 
-US_out_boost_small_h3 <- plot_zoo_obj(gbm.US_h3d0_roll_short[[2]],
-                                      roc = gbm.US_h3d0_roll_short[[3]][9],
+US_out_boost_small_h3 <- plot_zoo_obj(gbm.US_h3d0_roll_CB[[2]],
+                                      roc = gbm.US_h3d0_roll_CB[[3]][9],
                                       horizon = 3, 
                                       IN = FALSE, 
                                       LARGE = FALSE,
                                       JP = FALSE)
-US_out_boost_small_h6 <- plot_zoo_obj(gbm.US_h6d0_roll_short[[2]],
-                                      roc = gbm.US_h6d0_roll_short[[3]][9],
+US_out_boost_small_h6 <- plot_zoo_obj(gbm.US_h6d0_roll_CB[[2]],
+                                      roc = gbm.US_h6d0_roll_CB[[3]][9],
                                       horizon = 6, 
                                       IN = FALSE, 
                                       LARGE = FALSE,
                                       JP = FALSE)
 
-US_out_boost_small_h12 <- plot_zoo_obj(gbm.US_h12d0_roll_short[[2]],
-                                       roc = gbm.US_h12d0_roll_short[[3]][9],
+US_out_boost_small_h12 <- plot_zoo_obj(gbm.US_h12d0_roll_CB[[2]],
+                                       roc = gbm.US_h12d0_roll_CB[[3]][9],
                                        horizon = 12, 
                                        IN = FALSE, 
                                        LARGE = FALSE,
@@ -356,18 +356,7 @@ multiplot(US_in_logit_h12, US_in_boost_large_h12, US_in_boost_small_h12, US_out_
 #load("glm.in_JP_h6_4112015.RData")
 #load("gbm.JP_h6d0_roll_big_4112015.RData")
 
-# save(glm.in_JP_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.in_JP_h3_4112015.RData")
-# save(glm.in_JP_h6, file = "~/Google Drive/Independent Work/Saved RData/glm.in_JP_h6_4112015.RData")
-# save(glm.in_JP_h12, file = "~/Google Drive/Independent Work/Saved RData/glm.in_JP_h12_4112015.RData")
-# 
-# save(gbm.JP_h3d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h3d0_big_4112015.RData")
-# save(gbm.JP_h6d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_big_4112015.RData")
-# save(gbm.JP_h12d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_big_4112015.RData")
-# 
-# save(gbm.JP_h3d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h3d0_short_4112015.RData")
-# save(gbm.JP_h6d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_short_4112015.RData")
-# save(gbm.US_h12d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_short_4112015.RData")
-# 
+ 
 # save(glm.JP_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.JP_h3_roll_best_4112015.RData")
 # save(glm.JP_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.JP_h3_roll_best_4112015.RData")
 # save(glm.JP_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.JP_h3_roll_best_4112015.RData")
@@ -385,31 +374,18 @@ multiplot(US_in_logit_h12, US_in_boost_large_h12, US_in_boost_small_h12, US_out_
 # save(gbm.JP_h6d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_roll_short_4112015.RData")
 # save(gbm.JP_h12d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_short_4112015.RData")
 
-save(glm.in_US_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.in_US_h3_4112015.RData")
-save(glm.in_US_h6, file = "~/Google Drive/Independent Work/Saved RData/glm.in_US_h6_4112015.RData")
-save(glm.in_US_h12, file = "~/Google Drive/Independent Work/Saved RData/glm.in_US_h12_4112015.RData")
-
-save(gbm.US_h3d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_big_4112015.RData")
-save(gbm.US_h6d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_big_4112015.RData")
-save(gbm.US_h12d0_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_big_4112015.RData")
-
-save(gbm.US_h3d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_short_4112015.RData")
-save(gbm.US_h6d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_short_4112015.RData")
-save(gbm.US_h12d0_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_short_4112015.RData")
-
-save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-#save(glm.US_h12_roll_USNTK0959, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_USNTK0959_4112015.RData")
-
-save(glm.US_h3_out_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-save(glm.US_h3_out_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-save(glm.US_h3_out_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-
-save(gbm.US_h3d0_roll_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_big_4112015.RData")
-save(gbm.US_h6d0_roll_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_big_4112015.RData")
-save(gbm.US_h12d0_roll_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_big_4112015.RData")
-
-save(gbm.US_h3d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_short_4112015.RData")
-save(gbm.US_h6d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_short_4112015.RData")
-save(gbm.US_h12d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_short_4112015.RData")
+# save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
+# save(glm.US_h6_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h6_roll_best_4112015.RData")
+# save(glm.US_h12_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_best_4112015.RData")
+# 
+# save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
+# save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
+# save(gbm.US_h12d4_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4112015.RData")
+# 
+# save(gbm.US_h3d3_roll_serena, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_serena_4122015.RData")
+# save(gbm.US_h6d3_roll_serena, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_serena_4122015.RData")
+# #save(gbm.US_h12d3_roll_big, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_big_4112015.RData")
+# 
+# save(gbm.US_h3d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4112015.RData")
+# save(gbm.US_h6d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4112015.RData")
+# save(gbm.US_h12d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4112015.RData")

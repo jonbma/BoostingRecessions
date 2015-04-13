@@ -1,9 +1,6 @@
 """
 Fix Up Code Priority
 -Why is GBM getting a value <0.5? I must be calculating it incorrectly
--Add in to data of US_ALL_TRUNCV which to keep as level, which to keep log, etc. Right now I need to manually change :(
--Moduralize the code for roc and roll...I'm printing out the graphs and calculating ROC curve same each time
--Get statistic for AUROC?
 """
 
 #Set workdirectory
@@ -503,7 +500,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
 4. include lags?
 5. 
 """
-gbm.roc_roll <- function(forecast = 0, varname = "PMNO", lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, wind = 317, steps = 0.01, input_end = "1985-08-01", manual_end = FALSE)
+gbm.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,  country, distr = "bernoulli", train = 1.0, run.full = TRUE, runs = 10,  max_m= 400,steps = 0.01, input_end = "1985-08-01", manual_end = FALSE)
 {
   h = forecast
   d = lags
@@ -598,12 +595,10 @@ gbm.roc_roll <- function(forecast = 0, varname = "PMNO", lags = 3, zoo.C_lag0,  
 #     Get the summary of GBM model
     sum_gbm.C = summary(gbm.C, plotit= FALSE)
 
-#     Print best iteration and store
-    best.iter_cv = gbm.perf(gbm.C, method="cv")
-#     cv_score[i] = best.iter_cv
+#   cv_score[i] = best.iter_cv
     cv_score = m
     #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  predict.glm(glm.C,
+    pred_final[i] =  predict.gbm(gbm.C,
                             zoo.C_predict, 
                             n.trees= m,
                             type="response") 
@@ -660,10 +655,7 @@ gbm.roc_roll <- function(forecast = 0, varname = "PMNO", lags = 3, zoo.C_lag0,  
        main = paste(c, ":", "Boosting Rolling Forecast",h,"Months with", m, "iterations"), 
        axes = TRUE, 
        ylim=c(0,1))
-  #setwd("~/Google Drive/Independent Work/Writing/Graphs")
-  #dev.copy(png, paste(c,"_boost_","h",h,"d",d,"_outsample_",run,"_.png", sep = ""))
-  #dev.off()
-  
+
   #Return Prediction, Final Score, CV,Score and Ideally ROC
   return(list(zoo.REC,
               zoo.pred,
@@ -678,6 +670,7 @@ gbm.roc_roll <- function(forecast = 0, varname = "PMNO", lags = 3, zoo.C_lag0,  
 
 ######   Logit Models  #######
 
+#GLM Predict In-Sample
 glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
 {
   h = forecast
@@ -726,76 +719,7 @@ warning_train_end <- function(country, input_end)
 
 
 ##GLM Rolling Estimation
-glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, input_end = "1985-08-01", graph = TRUE)
-{
-  train_end = warning_train_end(country, input_end)
-  h = forecast
-  forward = sum(-h,-1)
-  c = country
-  train_start = start(zoo.C_lag0)
- 
-  test_start = as.Date(train_end) + months(h+1) 
-  test_end = end(zoo.C_lag0)
-    
-  run = elapsed_months(test_end, test_start)
-  pred_final = vector("numeric")
-  
-  iters = sum(run,1)
-  
-  for(i in 1:iters)
-  {
-    start_shift  <- months(i-1) + as.Date(train_start)
-    end_shift <- months(i-1) + as.Date(train_end)
-    
-    zoo.C_shift =  window(zoo.C_lag0, start = start_shift, end = end_shift)
-    zoo.C_predict = window(zoo.C_lag0, start = end_shift, end = end_shift)
-    
-    if(c == "US")
-    {
-    glm.C = eval(substitute( dyn$glm(USRECD ~ lag(variable, forward), data = zoo.C_shift, family = "binomial"),list(variable = as.name(varname))))
-    }
-    else if(c == "JP")
-    {      
-      glm.C = eval(substitute(
-        dyn$glm(JAPRECD ~ lag(variable, forward), 
-                data = zoo.C_shift, 
-                family = "binomial"),
-        list(variable = as.name(varname))))
-    }
-    else
-    {
-      stop("Uh oh, no country specified or incorrect spelling")
-    }
-    #Forecast using LAST time to forecast NEXT h period
-    pred_final[i] =  predict.glm(glm.C,
-                             newdata = zoo.C_predict, 
-                             type="response")
-    
-  }
-    
-  from <- as.Date(test_start)
-  to <- as.Date(test_end)
-  months <- seq.Date(from=from,to=to,by="month")
-  zoo.pred = zoo(pred_final, months)
-  zoo.REC = window(zoo.C_lag0[,1], 
-                   start = start(zoo.pred),
-                   end=end(zoo.pred),
-                   frequency = 12)
-  
-  #Plot Prediction Against ACTUAL Recession
-  if(graph == TRUE)
-  {
-  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-  par(new=TRUE)
-  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
-       main = paste(c, ":", varname, "GLM Roll Forecast",h,"Months"), 
-       axes = TRUE, 
-       ylim=c(0,1))
-  }
-  return(roc(zoo.REC, zoo.pred))
-}
-
-glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, train = 1.0, run.full = TRUE, runs = 10,  max_m= 400, input_end = "1985-08-01", manual_end = FALSE)
+glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, input_end = "1985-08-01", graph = TRUE, manual_end = FALSE)
 {
   h = forecast
   c = country
@@ -806,9 +730,9 @@ glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, t
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
   #Need to get Recession Information because not included in Lags
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
-  
+
   train_start = start(zoo.C_lagRESULT)
-  #train_end = end_train
+  
   if(manual_end == FALSE)
   {
     train_end = warning_train_end(country, input_end)
@@ -820,15 +744,8 @@ glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, t
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
-  #Setting Number of run (Not to be confused with M trees)
-  if(run.full == TRUE){
-    #run = (nrow(zoo.C_lagRESULT)-window-h - 1)
-    run = elapsed_months(test_end, test_start)
-  }
-  else{
-    run = runs
-  }
-  
+  run = elapsed_months(test_end, test_start)
+
   #Create prediction vector
   pred_final = vector("numeric")
   
@@ -848,7 +765,7 @@ glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, t
     
     glm.C = eval(substitute(glm(REC_shift ~ zoo.C_shift[,varname], family = "binomial"), list(variable = as.name(varname))))
   
-    #Forecast using LAST time to forecast NEXT h period
+    #Forecast starting at test_start
     pred_final[i] =  predict.glm(glm.C,
                                  zoo.C_predict, 
                                  type="response")
@@ -856,8 +773,6 @@ glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, t
     if(i %% 10 == 0)
     {
       cat(i)
-      save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
-      #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
     }
   }
   #Print how long it took for ALL the run
@@ -878,7 +793,7 @@ glm.roc_roll2 <- function(forecast = 0, varname = "PMNO",zoo.C_lag0,  country, t
   plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
   plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
-       main = paste(c, ":", "Boosting Rolling Forecast",h,"Months with", m, "iterations"), 
+       main = paste(c, ":", varname, "GLM Rolling Forecast",h,"Months"), 
        axes = TRUE, 
        ylim=c(0,1))
   
@@ -954,8 +869,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
   return(df.store_all)
 }
   
-#GLM Out-Of-Sample
-
+#GLM Out-Of-Sample Standard
 glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_end = "1985-08-01", logit = "TRUE", graph = "TRUE")
 {
   forward <- sum(-1,-forecast)
