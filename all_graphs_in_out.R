@@ -38,6 +38,7 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
     start <- index(RECD[which(diff(RECD)==1)])
     end   <- index(RECD[which(diff(RECD)==-1)-1])
     end <- c(end, as.Date("2014-12-01"))
+    text_start = "1985-12-01"
   }
   else
   {
@@ -45,6 +46,7 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
     RECD = zoo.US_lag0$USRECD
     start <- index(RECD[which(diff(RECD)==1)])
     end   <- index(RECD[which(diff(RECD)==-1)-1])
+    text_start = "1965-12-01"    
   }
 
   recession.df <- data.frame(start=start, end=end)
@@ -58,7 +60,8 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
               aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), 
               fill="red", alpha=0.3) +
     ggtitle(paste(country,":",method,",",horizon, "Months",",", sample_type))+
-    annotate("text", x = as.Date("1985-12-01"), y = 0.90, label = paste("AUROC:",roc))
+    annotate("text", x = as.Date(text_start), y = 0.90, label = paste("AUROC:",roc))+
+    theme(axis.title.x = element_blank(), axis.title.y = element_blank())
   
   return(gg_object)
 }

@@ -1,10 +1,12 @@
 #US
-varname = "FSPCOM"
+varname = "EXRUK"
 autoplot(zoo.US[,varname])
 autoplot(diff(zoo.US)[,varname])
 autoplot(Delt(zoo.US[,varname]))
 autoplot(diff(log(zoo.US[,varname]), differences = 2))
 autoplot(log(zoo.US[,varname]))
+autoplot(Delt(zoo.US[,varname]))
+
 
 #JP
 varname = "JPNTK0595"

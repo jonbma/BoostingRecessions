@@ -55,10 +55,11 @@ glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_big, h = 6, c = "JP", graph_par
 glm.out_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_big, h = 12, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
 
 #All GLM Out Of Sample ROLL w/ ROC Score
-glm.out_roll_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_TN, h = 3, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-glm.out_roll_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_TN, h = 6, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-glm.out_roll_all_JP_h12 = glm.out_roll_all(zoo.JP_lag0_TN, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-glm.out_roll_all_JP_h12_big = glm.out_roll_all(zoo.JP_lag0_BIG_TN_ONLY, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
+glm.out_roll_all_JP_h3_medium = glm.out_roll_all(zoo.JP_lag0_medium, h = 3, c = "JP", all_col = TRUE, model = 2, graph_param = FALSE)
+glm.out_roll_all_JP_h6_medium = glm.out_roll_all(zoo.JP_lag0_medium, h = 6, c = "JP", all_col = TRUE, model = 2, graph_param = FALSE)
+glm.out_roll_all_JP_h12_medium = glm.out_roll_all(zoo.JP_lag0_medium, h = 12, c = "JP", all_col = TRUE, model = 2, graph_param = FALSE)
+
+#glm.out_roll_all_JP_h12_big = glm.out_roll_all(zoo.JP_lag0_BIG_TN_ONLY, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
 
 
 save(glm.out_roll_all_JP_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h3_4102015.RData")

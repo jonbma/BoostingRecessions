@@ -770,10 +770,10 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
                                  zoo.C_predict, 
                                  type="response")
     
-    if(i %% 10 == 0)
-    {
-      cat(i)
-    }
+    #if(i %% 10 == 0)
+    #{
+    #  cat(i)
+    #}
   }
   #Print how long it took for ALL the run
   time_spent = proc.time() - ptm
@@ -788,7 +788,8 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
                    start = start(zoo.pred),
                    end=end(zoo.pred),
                    frequency = 12)
-  
+  if(graph == TRUE)
+  {
   #Plot Prediction Against ACTUAL Recession
   plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
   par(new=TRUE)
@@ -796,12 +797,10 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
        main = paste(c, ":", varname, "GLM Rolling Forecast",h,"Months"), 
        axes = TRUE, 
        ylim=c(0,1))
+  }
   
   #Return Prediction, Final Score, CV,Score and Ideally ROC
-  return(list(zoo.REC,
-              zoo.pred,
-              roc(zoo.REC,zoo.pred),
-              time_spent))
+  return(roc(zoo.REC,zoo.pred))
 }
 
 #GLM ALL Out-Of-Sample or ALL Roll
@@ -853,7 +852,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
       glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], graph = graph_param)
       #df.store_all[,name_all[i]] = 
       df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
-      if(i %% 10 == 0)
+      if(i %% 2 == 0)
       {cat(i)}    
     }
   }
