@@ -176,8 +176,9 @@ read_berge_US <- function()
 transform_season_US <- function(rec = 'D')
 {
   ####Convert to Zoo ###
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_SERENA.csv")
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
-  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
+  #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
                     skip=9,                # skip the first 8
                     stringsAsFactors=FALSE
@@ -243,7 +244,7 @@ transform_season_US <- function(rec = 'D')
   zoo.US_fix = zoo.US[,c("USRECD","YPR")]
   
   #Keep As Level 
-  levels = c("PMP","CES151","A0M001","PMEMP","PMI","PMNO","PMDEL","PMNV","FCLBMC","PMCP", "SCP90F",  "SFYGM3",  "SFYGM6",	"SFYGT1",	"SFYGT5",	"SFYGT10",	"SFYAAAC",	"SFYBAAC", "TERMSPREAD")
+  levels = c("PMP","CES151","A0M001","PMEMP","PMI","PMNO","PMDEL","PMNV","FCLBMC","PMCP", "SCP90F",  "SFYGM3",  "SFYGM6",	"SFYGT1",	"SFYGT5",	"SFYGT10",	"SFYAAAC",	"SFYBAAC")
   zoo.US_levels = zoo.US[,levels]
   
   #Log
@@ -719,18 +720,88 @@ warning_train_end <- function(country, input_end)
 
 
 ##GLM Rolling Estimation
-glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, input_end = "1985-08-01", graph = TRUE, manual_end = FALSE)
+glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, country, input_end = "1985-08-01", graph = TRUE)
+{
+  train_end = warning_train_end(country, input_end)
+  h = forecast
+  forward = sum(-h,-1)
+  c = country
+  train_start = start(zoo.C_lag0)
+  
+  test_start = as.Date(train_end) + months(h+1) 
+  test_end = end(zoo.C_lag0)
+  
+  run = elapsed_months(test_end, test_start)
+  pred_final = vector("numeric")
+  
+  iters = sum(run,1)
+  
+  for(i in 1:iters)
+  {
+    start_shift  <- months(i-1) + as.Date(train_start)
+    end_shift <- months(i-1) + as.Date(train_end)
+    
+    zoo.C_shift =  window(zoo.C_lag0, start = start_shift, end = end_shift)
+    zoo.C_predict = window(zoo.C_lag0, start = end_shift, end = end_shift)
+    
+    if(c == "US")
+    {
+      glm.C = eval(substitute( dyn$glm(USRECD ~ lag(variable, forward), data = zoo.C_shift, family = "binomial"),list(variable = as.name(varname))))
+    }
+    else if(c == "JP")
+    {      
+      glm.C = eval(substitute(
+        dyn$glm(JAPRECD ~ lag(variable, forward), 
+                data = zoo.C_shift, 
+                family = "binomial"),
+        list(variable = as.name(varname))))
+    }
+    else
+    {
+      stop("Uh oh, no country specified or incorrect spelling")
+    }
+    #Forecast using LAST time to forecast NEXT h period
+    pred_final[i] =  predict.glm(glm.C,
+                                 newdata = zoo.C_predict, 
+                                 type="response")
+    
+  }
+  
+  from <- as.Date(test_start)
+  to <- as.Date(test_end)
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred_final, months)
+  zoo.REC = window(zoo.C_lag0[,1], 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
+  
+  #Plot Prediction Against ACTUAL Recession
+  if(graph == TRUE)
+  {
+    plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+    par(new=TRUE)
+    plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
+         main = paste(c, ":", varname, "GLM Roll Forecast",h,"Months"), 
+         axes = TRUE, 
+         ylim=c(0,1))
+  }
+  return(roc(zoo.REC, zoo.pred))
+}
+
+##GLM Rolling Estimation
+glm.roc_roll_fast <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, input_end = "1985-08-01", graph = TRUE, manual_end = FALSE)
 {
   h = forecast
   c = country
   
   horizon = h + 1
-
+  
   #Lag h+1,h+2,...,h+d  
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
   #Need to get Recession Information because not included in Lags
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
-
+  
   train_start = start(zoo.C_lagRESULT)
   
   if(manual_end == FALSE)
@@ -745,15 +816,14 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
   test_end = end(zoo.C_lagRESULT)
   
   run = elapsed_months(test_end, test_start)
-
+  
   #Create prediction vector
   pred_final = vector("numeric")
   
   #Time
   ptm <- proc.time()
   iters <- sum(run,1)
-    
-  for(i in 1:iters)
+  pred_glm_roll <- function(i)
   {
     #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
     start_shift  <- months(i-1) + as.Date(train_start)
@@ -764,20 +834,21 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
     zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
     
     glm.C = eval(substitute(glm(REC_shift ~ zoo.C_shift[,varname], family = "binomial"), list(variable = as.name(varname))))
-  
+    
     #Forecast starting at test_start
-    pred_final[i] =  predict.glm(glm.C,
-                                 zoo.C_predict, 
-                                 type="response")
+    pred_final =  predict(glm.C,zoo.C_predict[,varname], type="response")
+    return(pred_final)
+    }
     
     #if(i %% 10 == 0)
     #{
     #  cat(i)
     #}
-  }
+  pred_final <- sapply(1:iters, pred_glm_roll)
+  
   #Print how long it took for ALL the run
   time_spent = proc.time() - ptm
-
+  
   #Convert into time series object
   from <- as.Date(test_start)
   to <- as.Date(test_start) + months(run)
@@ -790,13 +861,13 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
                    frequency = 12)
   if(graph == TRUE)
   {
-  #Plot Prediction Against ACTUAL Recession
-  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-  par(new=TRUE)
-  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
-       main = paste(c, ":", varname, "GLM Rolling Forecast",h,"Months"), 
-       axes = TRUE, 
-       ylim=c(0,1))
+    #Plot Prediction Against ACTUAL Recession
+    plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+    par(new=TRUE)
+    plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
+         main = paste(c, ":", varname, "GLM Rolling Forecast",h,"Months"), 
+         axes = TRUE, 
+         ylim=c(0,1))
   }
   
   #Return Prediction, Final Score, CV,Score and Ideally ROC
@@ -807,7 +878,7 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, in
 glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col = TRUE, model = 1)
 {
   name_all = colnames(zoo.C_lag0)[2:ncol(zoo.C_lag0)]
-  df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0)
+  df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0, QPS_SCORE = 0)
   if(all_col == TRUE)
   {
     total = length(name_all)
@@ -837,9 +908,10 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
     
     for(i in 1:total)
     {
-      glm.out_model = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], input_end = end, graph = graph_param)
+      glm.out_output = glm.out(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], graph = graph_param)
       #df.store_all[,name_all[i]] = 
-      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
+      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_output[[1]][9]) 
+      df.store_all[df.store_all$NAME == name_all[i],"QPS_SCORE"] = as.numeric(glm.out_output[[2]]) 
       if(i %% 10 == 0)
       {cat(i)}    
     }
@@ -871,11 +943,18 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
 #GLM Out-Of-Sample Standard
 glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_end = "1985-08-01", logit = "TRUE", graph = "TRUE")
 {
+
   forward <- sum(-1,-forecast)
+#   Y = zoo.C_lag0[,1]
+#   X = zoo.C_lag0[,varname]
+#   X_lag = lag(X, forward)
+#   
+#   merge(Y,X_lag)
+#   
   train_start = start(zoo.C_lag0)
   train_end = warning_train_end(country, input_end)
   #train_end = end_train
-  test_start = train_end
+  test_start = as.Date(train_end) + months(1)
   test_end = end(zoo.C_lag0)
   
   zoo.C_train = window(zoo.C_lag0, start = train_start, end=train_end)
@@ -934,7 +1013,42 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_en
   {
     plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
     par(new=TRUE)
-    plot(pred_os, ylab = "Prob. of Recession", main = paste(country, ":", varname,"GLM out Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
+    plot(pred_os, ylab = "Prob. of Recession", main = paste(country, ":", varname,"GLM out Forecast",forecast,"Months"), axes = TRUE)
   }
-  return(roc(zoo.REC,pred_os))
+  roc_score <- roc(zoo.REC,pred_os)
+  qps_score <- (accuracy(pred_os, zoo.REC)[2])^2
+  return(list(roc_score, qps_score))
+}
+
+#Test cases
+library(hydroGOF)
+
+#US
+glm.US_h6_out = glm.out(zoo.US_lag0_big, forecast = 6, country = "US", varname = "CES015")
+glm.JP_h12_out_best = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0952")
+
+data = df.US
+Traw = dim(data)[1]
+h=3 #or whatever
+varname = "CES015"
+
+Y = data$USRECD[1+h+1:Traw]
+X = data[1:sum(Traw,-h,1), varname]
+
+
+R = [position of first forecast] (May 1985, I think)
+
+#The loop would be:
+yhat = matrix(NA, length(R:T-1), 1)
+
+j=1
+for (i in c(R:T)) {
+  
+  x = X[j:i,]
+  y = Y[j:i]
+  
+  glmfit = glm(y~x$whatever, family=“binomial”)
+  temp = predict(glmfit, data=X, family=“binomial")  # Notice that this is full data (X), while model is estimated on smaller “rolling” sample (x)
+                 yhat[j] = temp[i+1]
+                 j = j+1
 }

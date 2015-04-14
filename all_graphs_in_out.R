@@ -8,14 +8,7 @@ Include H, D and AUC score
 plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = TRUE, LARGE = TRUE, JP = TRUE, horizon, country)
 {
   roc = round(as.numeric(roc),3)
-  if(IN == TRUE)
-  {
-    sample_type = "In-sample"
-  }
-  else
-  {
-    sample_type = "Out-sample"
-  }
+
   if(BOOST == TRUE)
   {
     if(LARGE == TRUE)
@@ -47,6 +40,15 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
     start <- index(RECD[which(diff(RECD)==1)])
     end   <- index(RECD[which(diff(RECD)==-1)-1])
     text_start = "1965-12-01"    
+  }
+  
+  if(IN == TRUE)
+  {
+    sample_type = "In-sample"
+  }
+  else
+  {
+    sample_type = "Out-sample"    
   }
 
   recession.df <- data.frame(start=start, end=end)
@@ -200,17 +202,18 @@ US_in_boost_small_h12 <- plot_zoo_obj(gbm.US_in_h12d0_short[[4]],
 
 
 #Out-Sample: Logit Roll
-JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_roll_best[[11]],
-                            roc = glm.JP_h3_roll_best[9],
-                            varname = "JPNTK0096", 
+
+JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_out_best[[1]][[11]],
+                            roc = glm.JP_h3_out_best[[1]][9],
+                            varname = "JPNTK0199", 
                             horizon = 3, 
                             IN = FALSE, 
                             LARGE = TRUE, 
                             JP = TRUE, 
                             BOOST = FALSE)
 
-JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[11]],
-                             roc = glm.JP_h6_roll_best[9],
+JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_out_best[[1]][[11]],
+                             roc = glm.JP_h6_out_best[[1]][9],
                              varname = "JPNTK0199", 
                              horizon = 6, 
                              IN = FALSE, 
@@ -218,9 +221,8 @@ JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[11]],
                              JP = TRUE, 
                              BOOST = FALSE)
 
-#I used the best logit standard and calculate the roll
-JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_JPNTK0959[[11]],
-                             roc = glm.JP_h12_roll_JPNTK0959[9],
+JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_out_best[[1]][[11]],
+                             roc = glm.JP_h12_out_best[[1]][9],
                              varname = "JPNTK0959", 
                              horizon = 12, 
                              IN = FALSE, 
@@ -229,8 +231,8 @@ JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_JPNTK0959[[11]],
                              BOOST = FALSE)
 
 
-US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[2]],
-                                roc = glm.US_h3_roll_best[[3]][9],
+US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_out_best[[1]][[11]],
+                                roc = glm.US_h3_out_best[9],
                                 varname = "PMNO", 
                                 horizon = 3, 
                                 IN = FALSE, 
@@ -238,17 +240,17 @@ US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[2]],
                                 JP = FALSE, 
                                 BOOST = FALSE)
 
-US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[2]],
-                                roc = glm.US_h6_roll_best[[3]][9],
-                                varname = "SFYGT5", 
+US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_out_best[[1]][[11]],
+                                roc = glm.US_h6_out_best[[1]][9],
+                                varname = "PMNO", 
                                 horizon = 6, 
                                 IN = FALSE, 
                                 LARGE = TRUE, 
                                 JP = FALSE, 
                                 BOOST = FALSE)
 
-US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_roll_best[[2]],
-                                 roc = glm.US_h12_roll_best[[3]][9],
+US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_out_best[[1]][[11]],
+                                 roc = glm.US_h12_out_best[[1]][9],
                                  varname = "SFYGT5", 
                                  horizon = 12, 
                                  IN = FALSE, 
@@ -349,8 +351,6 @@ multiplot(US_in_logit_h3, US_in_boost_large_h3, US_in_boost_small_h3, US_out_log
 multiplot(US_in_logit_h6, US_in_boost_large_h6, US_in_boost_small_h6, US_out_logit_h6, US_out_boost_big_h6, US_out_boost_small_h6, cols = 2)
 multiplot(US_in_logit_h12, US_in_boost_large_h12, US_in_boost_small_h12, US_out_logit_h12, US_out_boost_big_h12, US_out_boost_small_h12, cols = 2)
 
-
-
 ### Save and Load Zone ###
 
 #Save Japan values In-Sample
@@ -377,6 +377,18 @@ multiplot(US_in_logit_h12, US_in_boost_large_h12, US_in_boost_small_h12, US_out_
 # save(gbm.JP_h6d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_roll_short_4112015.RData")
 # save(gbm.JP_h12d0_roll_short, file = "~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_short_4112015.RData")
 
+#JP Load
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h3d0_roll_big_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_roll_big_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_big_4112015.RData")
+
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h3d0_roll_short_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_roll_short_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_short_4112015.RData")
+
+
+
+
 # save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
 # save(glm.US_h6_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h6_roll_best_4112015.RData")
 # save(glm.US_h12_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_best_4112015.RData")
@@ -392,3 +404,16 @@ multiplot(US_in_logit_h12, US_in_boost_large_h12, US_in_boost_small_h12, US_out_
 # save(gbm.US_h3d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4112015.RData")
 # save(gbm.US_h6d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4112015.RData")
 # save(gbm.US_h12d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4112015.RData")
+
+#US Load
+load( "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
+load( "~/Google Drive/Independent Work/Saved RData/glm.US_h6_roll_best_4112015.RData")
+load( "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_best_4112015.RData")
+
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4112015.RData")
+
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4112015.RData")
