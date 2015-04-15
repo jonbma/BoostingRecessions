@@ -4,7 +4,7 @@
 #Transform and Season#
 zoo.US_lag0 = transform_season_US()
 zoo.US_lag0_big = zoo.US_lag0
-#zoo.US_lag0_short = read_berge_US()
+zoo.US_lag0_berge = read_berge_US()
 
 
 SHORT_US = c("USRECD", "A0M001", "CLAIMUII", "A1M008", "PMNO", "A0M027", "PERMITNSA", "FSPCOM", "CCINRV", "SFYGT10", "HHSNTN")
@@ -37,25 +37,36 @@ gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_CB, "US", "bernoulli",
 #####
 
 ################## Out-Of-Sample ###################
-######Logit Roll  GRAPHED
+#Logit Roll  
 glm.US_h3_roll_best  = glm.roc_roll(zoo.US_lag0_big, forecast = 3, varname = "PMNO", country = "US")
-glm.US_h6_roll_best  = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "FCLNBW", country = "US")
+glm.US_h6_roll_best  = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
 glm.US_h12_roll_best = glm.roc_roll(zoo.US_lag0_big, forecast = 12, varname = "SFYGT5", country = "US")
-#######
+#
 glm.US_h3_roll = glm.roc_roll(zoo.US_lag0_big, forecast = 3, varname = "SFYGM3", country = "US")
 glm.US_h6_roll = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "EXRUK", country = "US")
 glm.US_h6_roll_CRAP = glm.roc_roll_CRAP(zoo.US_lag0_big, forecast = 6, varname = "EXRUK", country = "US")
 
-###Logit Out 
+###Logit Out GRAPHED
 glm.US_h3_out_best = glm.out(zoo.US_lag0_big, forecast = 3, country = "US", varname = "PMNO")
 glm.US_h6_out_best = glm.out(zoo.US_lag0_big, forecast = 6, country = "US", varname = "PMNO")
 glm.US_h12_out_best = glm.out(zoo.US_lag0_big, forecast = 12, country = "US", varname = "SFYGT5")
 
 
-
-
 #Logit Roll
-glm.US_h12_roll = glm.roc_roll(zoo.US_lag0_big, forecast = 12, varname = "CES002", country = "US")
+glm.US_h6_roll1 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "EXRUK", country = "US")
+glm.US_h6_roll2 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "CES278", country = "US")
+glm.US_h6_roll3 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PUS", country = "US")
+glm.US_h6_roll4 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "FMRRA", country = "US")
+glm.US_h6_roll5 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PUCD", country = "US")
+glm.US_h6_roll6 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "GMDCD", country = "US")
+glm.US_h6_roll7 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "LHU680", country = "US")
+glm.US_h6_roll8 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "CES275", country = "US")
+glm.US_h6_roll9 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "A0M077", country = "US")
+glm.US_h6_roll10 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "FCLNBW", country = "US")
+glm.US_h6_roll11 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
+glm.US_h6_roll12 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "IPS306", country = "US")
+glm.US_h6_roll13 = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "CCINRV", country = "US")
+glm.US_h12_roll = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PUS", country = "US")
 
 glm.US_h6_roll_PMNO = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMNO", country = "US")
 glm.US_h6_roll_PMI = glm.roc_roll(zoo.US_lag0_big, forecast = 6, varname = "PMI", country = "US")
@@ -72,70 +83,55 @@ glm.out_all_roll_USh3 = glm.out_roll_all(zoo.US_lag0, h =3, c = "US", all_col = 
 glm.out_all_roll_USh6 = glm.out_roll_all(zoo.US_lag0, h =6, c = "US", all_col = TRUE, model = 2, graph =FALSE)
 glm.out_all_roll_USh12 = glm.out_roll_all(zoo.US_lag0, h =12, c = "US",all_col = TRUE, model = 2, graph = FALSE)
 
-save(glm.out_all_roll_USh3 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh3_4132015.RData")
-save(glm.out_all_roll_USh6 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_4132015.RData")
-save(glm.out_all_roll_USh12 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh12_4132015.RData")
+#save(glm.out_all_roll_USh3 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh3_4132015.RData")
+#save(glm.out_all_roll_USh6 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_4132015.RData")
+#save(glm.out_all_roll_USh12 , file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh12_4132015.RData")
 
+glm.out_all_roll_USh3_fix = glm.out_roll_all(zoo.US_lag0, h =3, c = "US", model = 2, graph = TRUE, all_col = FALSE)
+glm.out_all_roll_USh6_fix = glm.out_roll_all(zoo.US_lag0, h =6, c = "US", all_col = TRUE, model = 2, graph =FALSE)
+glm.out_all_roll_USh12_fix = glm.out_roll_all(zoo.US_lag0, h =12, c = "US",all_col = TRUE, model = 2, graph = FALSE)
 
-#Big Boost: 1985-08-01 GRAPHED
+#save(glm.out_all_roll_USh6_fix, file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_fix_4142015.RData")
+
+###Big Boost: 1985-08-01 GRAPHED
 gbm.US_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0, run.full = TRUE, country = "US")
 gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.full = TRUE, country = "US")
+###
+#save(glm.out_all_roll_USh6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_41215.RData")
+#save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
+#save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
+#save(gbm.US_h12d4_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4112015.RData")
 
-save(glm.out_all_roll_USh6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_all_roll_USh6_41215.RData")
 
+#Travis Boost 
+gbm.US_h3d0_roll_travis = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_berge, run.full = TRUE, country = "US", m = 1000)
+gbm.US_h6d0_roll_travis = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_berge, run.full = TRUE, country = "US", m = 1000)
+gbm.US_h12d0_roll_travis = gbm.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, run.full = TRUE, country = "US", max_m = 100)
 
-#Big Boost: Serena 
-zoo.US_lag0_S = transform_season_US()
-gbm.US_h3d3_roll_serena = gbm.roc_roll(forecast = 3, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
-gbm.US_h6d3_roll_serena = gbm.roc_roll(forecast = 6, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
-gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
+mb.US_h0d0_roll_travis <- mboost.roc_roll(forecast = 0, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h6d0_roll_travis <- mboost.roc_roll(forecast = 6, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h12d0_roll_travis <- mboost.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h12d0_roll_travis_new <- mboost.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
 
-save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
-save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
-save(gbm.US_h12d4_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4112015.RData")
+View(mb.US_h12d0_roll_travis[[2]])
 
-#Boost w/ No Lags
-#gbm.US_h3d0_roll_full400 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
-#gbm.US_h6d0_roll_full400 = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
-#gbm.US_h12d0_roll_full400 = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0, run.full = TRUE, country = "US", m = 400)
-
-#Small Boost 
-gbm.US_h3d0_roll_travis = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_short, run.full = TRUE, country = "US", m = 1000)
-gbm.US_h6d0_roll_travis = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_short, run.full = TRUE, country = "US", m = 1000)
-gbm.US_h12d0_roll_travis = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_short, run.full = TRUE, country = "US", m = 1000)
+mb.US_h18d0_roll_travis <- mboost.roc_roll(forecast = 18, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h24d0_roll_travis <- mboost.roc_roll(forecast = 24, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h12_in <- mboost_h12_US <- mboost.forecast_lag(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, country = "US")
 
 #Small Boost GRAPHED using CB
 gbm.US_h3d0_roll_CB = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h6d0_roll_CB = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h12d0_roll_CB = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
-
-
-
 gbm.US_h6d3_roll_CB = gbm.roc_roll(forecast = 6, lags = 3, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h12d4_roll_CB = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0_CB, run.full = TRUE, country = "US", max_m = 400)
-
-
 
 #Boost with 1 Variable
 gbm.US_h12d3_roll_SFYGT10 = gbm.roc_roll(forecast = 12, lags = 3,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMP')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
 gbm.US_h12d0_roll_SFYGT10AAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYAAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
 gbm.US_h12d0_roll_SFYGT10BAA = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'SFYBAAC')], run.full = TRUE, country = "US", m = 400, wind = 180, steps = 0.1)
 gbm.US_h12d0_roll_SFYGT10PM = gbm.roc_roll(forecast = 12, lags = 0,  zoo.US_lag0[,c('USRECD','SFYGT10', 'PMDEL')], run.full = TRUE, country = "US", m = 400, wind = 145, steps = 0.1)
-
-#Travis MBoost
-mboost_model = mboost(NBER ~ slope + level + curve,data = df.US, baselearner = "bols")
-mboost_fit(mboost_model, df.US$NBER)
-
-glmb1 = glmboost(NBER ~ . ,
-                 data = zoo.US2, 
-                 control = boost_control(mstop = 100))
-
-maic <- AIC(glmb1)
-
-glmb1 = glmboost(NBER ~ . ,data = zoo.US2)
-
-
 
 ##Analysis ####
 
@@ -159,5 +155,18 @@ zoo.US_lag0_liu = window(zoo.US_lag0, start = "1959-01-01", end = "2011-12-01")
 glm.out(zoo.US_lag0_liu, forecast = 2, country = "US", varname = "TERMSPREAD")
 glm.out(zoo.US_lag0_liu, forecast = 5, country = "US", varname = "TERMSPREAD")
 glm.out(zoo.US_lag0_liu, forecast = 11, country = "US", varname = "TERMSPREAD")
-glm.out(zoo.US_lag0_liu, forecast = 17, country = "US", varname = "TERMSPREAD")
 glm.out(zoo.US_lag0_liu, forecast = 23, country = "US", varname = "TERMSPREAD")
+
+
+#Sanity Check: GLMOUT score ~ Liu and GLM roll makes sense!
+glm.out_h18_termspread = glm.out(zoo.US_lag0_liu, forecast = 17, country = "US", varname = "TERMSPREAD")
+glm.out_h18_termspread_roll = glm.roc_roll(zoo.US_lag0_liu, forecast = 17, country = "US", varname = "TERMSPREAD")
+
+#Sanity check: Our results ~ Serena!
+zoo.US_lag0_S = transform_season_US()
+gbm.US_h3d3_roll_serena = gbm.roc_roll(forecast = 3, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
+gbm.US_h6d3_roll_serena = gbm.roc_roll(forecast = 6, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
+gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
+
+
+

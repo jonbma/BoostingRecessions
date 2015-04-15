@@ -1,8 +1,3 @@
-"""
-Fix Up Code Priority
--Why is GBM getting a value <0.5? I must be calculating it incorrectly
-"""
-
 #Set workdirectory
 setwd("~/Google Drive/Independent Work")
 
@@ -117,7 +112,7 @@ elapsed_months <- function(end_date, start_date) {
 }
 
 
-plot_zoo_REC <- function(zoo.C, varname, country)
+plot_zoo_REC <- function(zoo.C, varname = NULL, country)
 {
   if(country == "US")
   { 
@@ -133,13 +128,31 @@ plot_zoo_REC <- function(zoo.C, varname, country)
   {
     stop("No valid country name provided!")
   }
+  if(is.null(varname))
+  {
+    varname.df <- data.frame(date= index(zoo.C), value = as.vector(zoo.C))
+  }
+  else
+  {
   varname.df <- data.frame(date= index(zoo.C[,varname]), value = as.vector(zoo.C[,varname]))
+  }
   start <- index(RECD[which(diff(RECD)==1)])
   end   <- index(RECD[which(diff(RECD)==-1)-1])
-  end <- c(end, as.Date("2014-12-01"))
+  if(country == "JP")
+  {
+    end <- c(end, as.Date("2014-12-01"))
+  }
+  else
+  {
+    end <- end[-1]
+  }
   reccesion.df <- data.frame(start=start, end=end)
   recession.df <- subset(reccesion.df, start >= min(varname.df$date))
   varname.df <- subset(varname.df, date >= start[1])
+  if(is.null(varname))
+  {
+    varname = "EMPTY"
+  }
   g <- ggplot(varname.df)+geom_line(data=varname.df, aes(x=date,y=value)) + theme_bw() + geom_rect(data=recession.df, aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), fill="red", alpha=0.5)+xlab("Time")+ylab(paste(varname))+ggtitle(paste(country,":", varname, "and recession"))
   return(g)
 }
@@ -176,9 +189,9 @@ read_berge_US <- function()
 transform_season_US <- function(rec = 'D')
 {
   ####Convert to Zoo ###
-  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_SERENA.csv")
+  #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_SERENA.csv")
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_BERGE.csv")
-  #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
+  strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_ALL_TRUNC.csv")
   df.US <- read.csv(text=strs.US,             # read from an R object rather than a file
                     skip=9,                # skip the first 8
                     stringsAsFactors=FALSE
@@ -494,6 +507,187 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
   return(list(summary(gbm.C),best.iter_cv,roc_gbm,zoo.pred))
 }
 
+#Mboost
+mboost.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, m = 100)
+{
+  h = forecast
+  d = lags
+  c = country
+  if(d == 0)
+  {
+    horizon = h
+  }
+  else
+  {
+    horizon = seq(from =h+1, to = h+d)
+  }
+  #Lag h+1,h+2,...,h+d  
+  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
+  #Need to get Recession Information because not included in Lags
+  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
+  
+  #Create GBM Model using ALL data with 50% as train
+
+  boost_control(mstop = m, nu = 0.1, trace = TRUE)
+  mboost.C = glmboost(as.factor(REC_lagRESULT) ~ . ,
+                      data = zoo.C_lagRESULT,
+                      center = TRUE,
+                      control = boost_control(),
+                      family= Binomial(link= "logit"))
+  
+  AIC_stops = mstop(AIC(mboost.C))
+  print(AIC_stops)
+  
+  
+  #Predict in Sample
+  pred = predict(mboost.C,zoo.C_lagRESULT, 
+                 type="response")
+  
+  #Plot Prediction Against Actual Recession
+  from <- as.Date(start(zoo.C_lagRESULT))
+  to <- as.Date(end(zoo.C_lagRESULT))
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred, months)
+  zoo.REC = window(REC_lagRESULT, 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
+  
+  #Use GG Plot here and include what is h and d
+  #plot(ts.pred, col = "red", ylab = "Prob. of Recession", main = paste(c, ": Forecast",h,"Months"), axes = TRUE)
+  
+  #Calculate ROC score
+  roc_mboost = roc(zoo.REC,zoo.pred)
+  autoplot(zoo.pred)
+  plot_zoo_REC(zoo.pred, country = "US")
+  return(list(roc_mboost,zoo.pred,mboost.C))
+}
+
+mboost.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,m = 100, country, run.full = TRUE, runs = 10, input_end = "1985-05-01", manual_end = FALSE, CVM = FALSE)
+{
+  h = forecast
+  d = lags
+  c = country
+  
+  if(d == 0)
+  {
+    horizon = h + 1
+  }
+  else
+  {
+    horizon = seq(from =h+1, to = h+d)
+  }
+  
+  #Lag h+1,h+2,...,h+d  
+  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
+  #Need to get Recession Information because not included in Lags
+  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
+  
+  train_start = start(zoo.C_lagRESULT)
+  #train_end = end_train
+  if(manual_end == FALSE)
+  {
+    train_end = warning_train_end(country, input_end)
+  }
+  else
+  {
+    train_end = input_end
+  }
+  test_start = as.Date(train_end) + months(h+1) 
+  test_end = end(zoo.C_lagRESULT)
+  
+  #Setting Number of run (Not to be confused with M trees)
+  if(run.full == TRUE){
+    #run = (nrow(zoo.C_lagRESULT)-window-h - 1)
+    run = elapsed_months(test_end, test_start)
+  }
+  else{
+    run = runs
+  }
+  
+  #Create prediction vector
+  pred_final = vector("numeric")
+  
+  #Time
+  ptm <- proc.time()
+  iters <- sum(run,1)
+  
+  #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
+  for(i in 1:iters)
+  {
+    #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
+    start_shift  <- months(i-1) + as.Date(train_start)
+    end_shift <- months(i-1) + as.Date(train_end)
+    
+    zoo.C_shift =  window(zoo.C_lagRESULT, start = start_shift, end = end_shift)
+    REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
+    zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
+    
+    mboost.C = glmboost(as.factor(REC_shift) ~ .,
+                        data = zoo.C_shift,
+                        center = TRUE,
+                        control = boost_control(mstop = 1000, nu = 0.1),
+                        family = Binomial(link= "logit"))
+    if(CVM == TRUE)
+    {
+    cvm <- cvrisk(mboost.C, folds = cv(model.weights(mboost.C),type = "kfold"),papply = lapply)
+    print(mstop(cvm))
+    mboost.C[mstop(cvm)]
+    }
+    
+    #Forecast using LAST time to forecast NEXT h period
+    pred_final[i] =  predict(mboost.C,
+                                 zoo.C_predict, 
+                                 type="response") 
+    
+    if(i %% 10 == 0)
+    {
+      cat(i)
+      save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
+      #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
+    }
+  }
+  #Print how long it took for ALL the run
+  time_spent = proc.time() - ptm
+  
+  #Convert into time series object
+  from <- as.Date(test_start)
+  to <- as.Date(test_start) + months(run)
+  months <- seq.Date(from=from,to=to,by="month")
+  zoo.pred = zoo(pred_final, months)
+  zoo.REC = window(REC_lagRESULT, 
+                   start = start(zoo.pred),
+                   end=end(zoo.pred),
+                   frequency = 12)
+  
+  #Plot Prediction Against ACTUAL Recession
+  plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
+  par(new=TRUE)
+  plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
+       main = paste(c, ":", "MBoost Rolling Forecast",h,"Months with", m, "iterations"), 
+       axes = TRUE, 
+       ylim=c(0,1))
+  
+  #Return Prediction, Final Score, CV,Score and Ideally ROC
+  return(list(zoo.REC,
+              zoo.pred,
+              roc(zoo.REC,zoo.pred),
+              time_spent,
+              mboost.C))
+}
+
+cl <- makeCluster(25) # e.g. to run cvrisk on 25 nodes via PVM
+myApply <- function(X, FUN, ...) {
+  myFun <- function(...) {
+    library("mboost") # load mboost on nodes
+    FUN(...)
+  }
+  ## further set up steps as required
+  parLapply(cl = cl, X, myFun, ...)
+}
+cvrisk(model, papply = myApply)
+stopCluster(cl)
+
 #Rolling Estimate of GBM
 """
 1. Get rid of subscript out of bounds error
@@ -656,11 +850,12 @@ gbm.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,  country, distr = "b
        main = paste(c, ":", "Boosting Rolling Forecast",h,"Months with", m, "iterations"), 
        axes = TRUE, 
        ylim=c(0,1))
+  roc_score = oc(zoo.REC,zoo.pred, direction = c("<"))
 
   #Return Prediction, Final Score, CV,Score and Ideally ROC
   return(list(zoo.REC,
               zoo.pred,
-              roc(zoo.REC,zoo.pred),
+              roc_score,
               df.store,
               zoo.pos,
               cv_score,
@@ -668,6 +863,9 @@ gbm.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,  country, distr = "b
               )
          )
 }
+
+
+
 
 ######   Logit Models  #######
 
@@ -683,7 +881,8 @@ glm.roc_in <- function(zoo.C_lag0, forecast, country, varname = "PMP")
               family = "binomial"),list(variable = as.name(varname))))
     pred.glm.C_h = predict(glm.C_h, data.frame = zoo.C_lag0, type = "response")
     RECD = window(zoo.C_lag0$USRECD, start = start(pred.glm.C_h), end = end(pred.glm.C_h))
-    return(roc(RECD, pred.glm.C_h))
+    roc_score = roc(RECD, pred.glm.C_h, direction = c("<"))
+    return(roc_score)
   }
   else if(country == "JP")
   {
@@ -786,96 +985,14 @@ glm.roc_roll <- function(zoo.C_lag0, varname = "TERMSPREAD", forecast = 0, count
          axes = TRUE, 
          ylim=c(0,1))
   }
-  return(roc(zoo.REC, zoo.pred))
-}
-
-##GLM Rolling Estimation
-glm.roc_roll_fast <- function(zoo.C_lag0, varname = "PMNO", forecast = 0, country, input_end = "1985-08-01", graph = TRUE, manual_end = FALSE)
-{
-  h = forecast
-  c = country
+  roc_score <- roc(zoo.REC,zoo.pred, direction =c("<"))
+  qps_score <- (accuracy(zoo.pred, zoo.REC)[2])^2
   
-  horizon = h + 1
-  
-  #Lag h+1,h+2,...,h+d  
-  zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
-  #Need to get Recession Information because not included in Lags
-  REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
-  
-  train_start = start(zoo.C_lagRESULT)
-  
-  if(manual_end == FALSE)
-  {
-    train_end = warning_train_end(country, input_end)
-  }
-  else
-  {
-    train_end = input_end
-  }
-  test_start = as.Date(train_end) + months(h+1) 
-  test_end = end(zoo.C_lagRESULT)
-  
-  run = elapsed_months(test_end, test_start)
-  
-  #Create prediction vector
-  pred_final = vector("numeric")
-  
-  #Time
-  ptm <- proc.time()
-  iters <- sum(run,1)
-  pred_glm_roll <- function(i)
-  {
-    #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
-    start_shift  <- months(i-1) + as.Date(train_start)
-    end_shift <- months(i-1) + as.Date(train_end)
-    
-    zoo.C_shift =  window(zoo.C_lagRESULT, start = start_shift, end = end_shift)
-    REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
-    zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
-    
-    glm.C = eval(substitute(glm(REC_shift ~ zoo.C_shift[,varname], family = "binomial"), list(variable = as.name(varname))))
-    
-    #Forecast starting at test_start
-    pred_final =  predict(glm.C,zoo.C_predict[,varname], type="response")
-    return(pred_final)
-    }
-    
-    #if(i %% 10 == 0)
-    #{
-    #  cat(i)
-    #}
-  pred_final <- sapply(1:iters, pred_glm_roll)
-  
-  #Print how long it took for ALL the run
-  time_spent = proc.time() - ptm
-  
-  #Convert into time series object
-  from <- as.Date(test_start)
-  to <- as.Date(test_start) + months(run)
-  months <- seq.Date(from=from,to=to,by="month")
-  zoo.pred = zoo(pred_final, months)
-  #   zoo.pos = zoo(pos_var, months)
-  zoo.REC = window(REC_lagRESULT, 
-                   start = start(zoo.pred),
-                   end=end(zoo.pred),
-                   frequency = 12)
-  if(graph == TRUE)
-  {
-    #Plot Prediction Against ACTUAL Recession
-    plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
-    par(new=TRUE)
-    plot(zoo.pred, col = "red", ylab = "Prob. of Recession", 
-         main = paste(c, ":", varname, "GLM Rolling Forecast",h,"Months"), 
-         axes = TRUE, 
-         ylim=c(0,1))
-  }
-  
-  #Return Prediction, Final Score, CV,Score and Ideally ROC
-  return(roc(zoo.REC,zoo.pred))
+  return(list(roc_score, qps_score))
 }
 
 #GLM ALL Out-Of-Sample or ALL Roll
-glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col = TRUE, model = 1)
+glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col = TRUE, runs = 3, model = 1)
 {
   name_all = colnames(zoo.C_lag0)[2:ncol(zoo.C_lag0)]
   df.store_all = data.frame(NAME = name_all, ROC_SCORE = 0, QPS_SCORE = 0)
@@ -885,7 +1002,7 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
   }
   else
   {
-    total = 3
+    total = runs
   }
   
   ptm <- proc.time()
@@ -923,7 +1040,8 @@ glm.out_roll_all <-function(zoo.C_lag0, h = 3, c, graph_param = FALSE, all_col =
     {
       glm.out_model = glm.roc_roll(zoo.C_lag0, forecast = h, country = c, varname = name_all[i], graph = graph_param)
       #df.store_all[,name_all[i]] = 
-      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[9]) 
+      df.store_all[df.store_all$NAME == name_all[i],"ROC_SCORE"] = as.numeric(glm.out_model[[1]][9]) 
+      df.store_all[df.store_all$NAME == name_all[i],"QPS_SCORE"] = as.numeric(glm.out_model[[2]]) 
       if(i %% 2 == 0)
       {cat(i)}    
     }
@@ -1013,42 +1131,9 @@ glm.out <- function(zoo.C_lag0, forecast = 0, country, varname = "PMP", input_en
   {
     plot(zoo.REC, col = "blue", ylab = "Prob. of Recession", axes = FALSE)
     par(new=TRUE)
-    plot(pred_os, ylab = "Prob. of Recession", main = paste(country, ":", varname,"GLM out Forecast",forecast,"Months"), axes = TRUE)
+    plot(pred_os, ylab = "Prob. of Recession", main = paste(country, ":", varname,"GLM out Forecast",forecast,"Months"), axes = TRUE, ylim=c(0,1))
   }
   roc_score <- roc(zoo.REC,pred_os)
   qps_score <- (accuracy(pred_os, zoo.REC)[2])^2
   return(list(roc_score, qps_score))
-}
-
-#Test cases
-library(hydroGOF)
-
-#US
-glm.US_h6_out = glm.out(zoo.US_lag0_big, forecast = 6, country = "US", varname = "CES015")
-glm.JP_h12_out_best = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0952")
-
-data = df.US
-Traw = dim(data)[1]
-h=3 #or whatever
-varname = "CES015"
-
-Y = data$USRECD[1+h+1:Traw]
-X = data[1:sum(Traw,-h,1), varname]
-
-
-R = [position of first forecast] (May 1985, I think)
-
-#The loop would be:
-yhat = matrix(NA, length(R:T-1), 1)
-
-j=1
-for (i in c(R:T)) {
-  
-  x = X[j:i,]
-  y = Y[j:i]
-  
-  glmfit = glm(y~x$whatever, family=“binomial”)
-  temp = predict(glmfit, data=X, family=“binomial")  # Notice that this is full data (X), while model is estimated on smaller “rolling” sample (x)
-                 yhat[j] = temp[i+1]
-                 j = j+1
 }

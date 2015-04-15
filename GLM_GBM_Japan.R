@@ -14,11 +14,10 @@ zoo.JP_lag0_short = zoo.JP_lag0_medium[,SHORT_TN_LIST]
 
 ##################In-Sample############################
 
-######Logit GRAPH
+#Logit
 glm.in_JP_h3 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0118")
 glm.in_JP_h6 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0199")
 glm.in_JP_h12 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0118")
-########
 
 #glm.roc_in(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
 #Best Logit Model
@@ -41,22 +40,21 @@ glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0187")
 glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
 
 
-###Logit Standard Out GRAPH
+#Logit Standard Out
 glm.JP_h3_out_best = glm.out(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0199")
 glm.JP_h6_out_best = glm.out(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0199")
 glm.JP_h12_out_best = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
-####
 
 #Logit Standard
 glm.JP_h3_out = glm.out(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "OPTA")
 glm.JP_h6_out = glm.out(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "OPTA")
 glm.JP_h12_out = glm.out(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "OPTA")
 
-#Logit Roll
+######Logit Roll Graph
 glm.JP_h3_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0096")
 glm.JP_h6_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 6, country = "JP", varname = "JPNTK0199")
 glm.JP_h12_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
-
+######
 
 #All GLM Out Of Sample STANDARD w/ ROC Score
 glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_big, h = 3, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
@@ -69,7 +67,6 @@ glm.out_roll_all_JP_h6_big = glm.out_roll_all(zoo.JP_lag0_big, h = 6, c = "JP", 
 glm.out_roll_all_JP_h12_big = glm.out_roll_all(zoo.JP_lag0_big, h = 12, c = "JP", all_col = TRUE, model = 2, graph_param = FALSE)
 
 #glm.out_roll_all_JP_h12_big = glm.out_roll_all(zoo.JP_lag0_BIG_TN_ONLY, h = 12, c = "JP", graph = FALSE, all_col = TRUE, model = 2)
-
 
 save(glm.out_roll_all_JP_h3, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h3_4102015.RData")
 save(glm.out_roll_all_JP_h6, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h6_4102015.RData")
