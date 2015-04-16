@@ -33,6 +33,7 @@ gbm.JP_h12d0_big = gbm.forecast_lag(12,0,zoo.JP_lag0_big, "Japan", "bernoulli", 
 gbm.JP_h12d0_short = gbm.forecast_lag(12,0,zoo.JP_lag0_short, "Japan", "bernoulli", train = 1.0) 
 ########
 
+write.csv(gbm.JP_h3d0_big[[1]], file = "gbm.JP_h3d0_big_in.csv")
 ###################Out-Sample##########################
 
 #Logit Standard
@@ -93,11 +94,18 @@ gbm.JP_h6d0_roll_big = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_big, run
 gbm.JP_h12d0_roll_big = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 #########
 
+write.csv(gbm.JP_h6d0_roll_big[[4]], file = "gbm.JP_h6d0_roll_big.csv")
+
 #######Boost Short No Lags Graph
 gbm.JP_h3d0_roll_short = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 gbm.JP_h6d0_roll_short = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 gbm.JP_h12d0_roll_short = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 #######
+
+write.csv(gbm.JP_h3d0_roll_short[[4]], file = "gbm.JP_h3d0_roll_short.csv")
+
+
+
 
 gbm.JP_h3d3_roll_short = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 gbm.JP_h6d3_roll_short = gbm.roc_roll(forecast = 6, lags = 3, zoo.JP_lag0_short, run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
@@ -105,7 +113,7 @@ gbm.JP_h12d4_roll_short = gbm.roc_roll(forecast = 12, lags = 4, zoo.JP_lag0_shor
 
 
 
-SHORT = c('JAPRECD','IPIRFG','IPIRFGMM','NEWJOB','NEWORD','NEWHOUSE','CONCONF','NIKKEICOM','INTSPREAD','GB10','IBORATE','STOCKPRIC','INVESTCLIM','OPTA','JPNTK0959')
+SHORT = c('JAPRECD','IPIRFG','IPIRFGMM','NEWJOB','NEWORD','NEWHOJPE','CONCONF','NIKKEICOM','INTSPREAD','GB10','IBORATE','STOCKPRIC','INVESTCLIM','OPTA','JPNTK0959')
 gbm.JP_h12d0_roll_better = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_big[,c('JAPRECD','OPTA','CONCONF','JPNTK0959')], run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 gbm.JP_h12d0_roll_better = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_big[,SHORT], run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
 gbm.JP_h12d3_roll_better = gbm.roc_roll(forecast = 12, lags = 3, zoo.JP_lag0_big[,SHORT], run.full = TRUE, country = "JP", max_m = 400, input_end = "1995-08-01")
@@ -151,7 +159,39 @@ gbm.JP_h3d3_roll_lead = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0[,CAB], 
 ##Analysis ####
 
 #plot(gbm.US_h12d4_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("US: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
-plot(gbm.JP_h3d0_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
-plot(gbm.JP_h6d0_roll_full[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
-plot(gbm.JP_h12d0_roll_full_tankan[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
+plot(gbm.JP_h3d0_roll_big[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 3 Months"), axes = TRUE)
+plot(gbm.JP_h3d0_roll_big[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 6 Months"), axes = TRUE)
+plot(gbm.JP_h3d0_roll_big[[5]], col = "black", ylab = "Number of Selected Variables", main = paste("JP: Number of Positive Variables in Forecast 12 Months"), axes = TRUE)
 
+plot_zoo_REC(gbm.JP_h3d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 3 months")
+plot_zoo_REC(gbm.JP_h6d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 6 months")
+plot_zoo_REC(gbm.JP_h12d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 12 months")
+
+
+##T-test for AUC##
+
+#In-Sample
+roc.test(glm.in_JP_h3, gbm.JP_h3d0_big[[3]], alternative = "less")
+roc.test(glm.in_JP_h6, gbm.JP_h6d0_big[[3]], alternative = "less")
+roc.test(glm.in_JP_h12, gbm.JP_h12d0_big[[3]], alternative = "less")
+
+roc.test(glm.in_JP_h3, gbm.JP_h3d0_short[[3]], alternative = "less")
+roc.test(glm.in_JP_h6, gbm.JP_h6d0_short[[3]], alternative = "less")
+roc.test(glm.in_JP_h12, gbm.JP_h12d0_short[[3]], alternative = "less")
+
+roc.test(gbm.JP_h3d0_big[[3]], gbm.JP_h3d0_short[[3]], alternative = "greater")
+roc.test(gbm.JP_h6d0_big[[3]], gbm.JP_h6d0_short[[3]], alternative = "greater")
+roc.test(gbm.JP_h12d0_big[[3]], gbm.JP_h12d0_short[[3]], alternative = "greater")
+
+#Out-Of-Sample
+roc.test(glm.JP_h3_roll_best[[1]], gbm.JP_h3d0_roll_short[[3]], alternative = "greater")
+roc.test(glm.JP_h6_roll_best[[1]], gbm.JP_h6d0_roll_short[[3]], alternative = "greater")
+roc.test(glm.JP_h12_roll_best[[1]], gbm.JP_h12d0_roll_short[[3]], alternative = "less")
+
+roc.test(glm.JP_h3_roll_best[[1]], gbm.JP_h3d0_roll_big[[3]], alternative = "greater")
+roc.test(glm.JP_h6_roll_best[[1]], gbm.JP_h6d0_roll_big[[3]], alternative = "greater")
+roc.test(glm.JP_h12_roll_best[[1]], roc_JP_h12_big, alternative = "greater")
+
+roc.test(gbm.JP_h3d0_roll_short[[3]], gbm.JP_h3d0_roll_big[[3]], alternative = "less")
+roc.test(gbm.JP_h6d0_roll_short[[3]], gbm.JP_h6d0_roll_big[[3]], alternative = "greater")
+roc.test(gbm.JP_h12d0_roll_short[[3]], roc_JP_h12_big, alternative = "greater")

@@ -112,7 +112,7 @@ elapsed_months <- function(end_date, start_date) {
 }
 
 
-plot_zoo_REC <- function(zoo.C, varname = NULL, country)
+plot_zoo_REC <- function(zoo.C, varname = NULL, country, TITLE = NULL)
 {
   if(country == "US")
   { 
@@ -153,7 +153,17 @@ plot_zoo_REC <- function(zoo.C, varname = NULL, country)
   {
     varname = "EMPTY"
   }
-  g <- ggplot(varname.df)+geom_line(data=varname.df, aes(x=date,y=value)) + theme_bw() + geom_rect(data=recession.df, aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), fill="red", alpha=0.5)+xlab("Time")+ylab(paste(varname))+ggtitle(paste(country,":", varname, "and recession"))
+  if(is.null(TITLE))
+  {
+    TITLE = paste(country,":", varname, "and recession") 
+  }
+  g <- ggplot(varname.df)+
+    geom_line(data=varname.df, aes(x=date,y=value)) +
+    theme_bw() + 
+    geom_rect(data=recession.df, aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), fill="red", alpha=0.3)+
+    xlab("Time")+
+    ylab(paste(varname))+
+    ggtitle(TITLE)
   return(g)
 }
 
@@ -528,11 +538,11 @@ mboost.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, m = 100)
   
   #Create GBM Model using ALL data with 50% as train
 
-  boost_control(mstop = m, nu = 0.1, trace = TRUE)
+  ctrl = boost_control(mstop = m, nu = 0.1, trace = TRUE)
   mboost.C = glmboost(as.factor(REC_lagRESULT) ~ . ,
                       data = zoo.C_lagRESULT,
                       center = TRUE,
-                      control = boost_control(),
+                      control = ctrl,
                       family= Binomial(link= "logit"))
   
   AIC_stops = mstop(AIC(mboost.C))
@@ -563,71 +573,62 @@ mboost.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, m = 100)
   return(list(roc_mboost,zoo.pred,mboost.C))
 }
 
-mboost.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,m = 100, country, run.full = TRUE, runs = 10, input_end = "1985-05-01", manual_end = FALSE, CVM = FALSE)
+mboost.roc_roll <- function(forecast = 0, zoo.C_lag0,m = 100, country, CVM = FALSE)
 {
   h = forecast
   d = lags
   c = country
   
-  if(d == 0)
-  {
-    horizon = h + 1
-  }
-  else
-  {
-    horizon = seq(from =h+1, to = h+d)
-  }
-  
-  #Lag h+1,h+2,...,h+d  
+  #We increment by 1 because Y_t is forecasted by X_t-h-1 so need to add 1 to forecast horizon
+  horizon = h + 1
+
+  #Lag zoo object and results
   zoo.C_lagRESULT = (na.omit(merge(lag(zoo.C_lag0[,2:ncol(zoo.C_lag0)], k = -horizon))))
-  #Need to get Recession Information because not included in Lags
   REC_lagRESULT = window(zoo.C_lag0[,1], start = start(zoo.C_lagRESULT), end = end(zoo.C_lagRESULT))
   
+  #Training period begins at the beginning of the zoo object
   train_start = start(zoo.C_lagRESULT)
-  #train_end = end_train
-  if(manual_end == FALSE)
-  {
-    train_end = warning_train_end(country, input_end)
-  }
-  else
-  {
-    train_end = input_end
-  }
+  train_end = "1985-05-01"
   test_start = as.Date(train_end) + months(h+1) 
   test_end = end(zoo.C_lagRESULT)
   
-  #Setting Number of run (Not to be confused with M trees)
-  if(run.full == TRUE){
-    #run = (nrow(zoo.C_lagRESULT)-window-h - 1)
-    run = elapsed_months(test_end, test_start)
-  }
-  else{
-    run = runs
-  }
+  #Number of iterations
+  run = elapsed_months(test_end, test_start)
   
   #Create prediction vector
   pred_final = vector("numeric")
   
   #Time
   ptm <- proc.time()
+  
+  #Need to increment total runs by 1
   iters <- sum(run,1)
   
-  #Big for loop that will iterate about 400 times and predict out of sample and increment by 1
+  ctrl = boost_control(mstop = m, nu = 0.1)
+  
+  
+  #Big for loop that will forecast iters amount of forecasts
   for(i in 1:iters)
   {
-    #Get zoo from 1 to 180, then 2 to 182, then 3 to 183 all the way to run + window so like 10 to 190
-    start_shift  <- months(i-1) + as.Date(train_start)
+    #Shift the rolling window from the start of training data by i amount. Same with the end of the initial window.
+    #start_shift  <- months(i-1) + as.Date(train_start)
+    start_shift <- as.Date(train_start)
     end_shift <- months(i-1) + as.Date(train_end)
     
+    #Get the data and recession from the rolling window
     zoo.C_shift =  window(zoo.C_lagRESULT, start = start_shift, end = end_shift)
     REC_shift = window(REC_lagRESULT, start = start_shift, end = end_shift)
+    #print(time(zoo.C_predict))
+    #Shift the prediction which should be the start of the test period + i
     zoo.C_predict = window(zoo.C_lagRESULT, start = (as.Date(test_start)+months(i-1)), end = (as.Date(test_start)+months(i-1)))
-    
+    #We estimate the mboost model here with 1000 iterations as the max
     mboost.C = glmboost(as.factor(REC_shift) ~ .,
                         data = zoo.C_shift,
                         center = TRUE,
-                        control = boost_control(mstop = 1000, nu = 0.1),
+                        control = ctrl,
                         family = Binomial(link= "logit"))
+    
+    #Use CV to find optimal number of iterations
     if(CVM == TRUE)
     {
     cvm <- cvrisk(mboost.C, folds = cv(model.weights(mboost.C),type = "kfold"),papply = lapply)
@@ -635,26 +636,28 @@ mboost.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,m = 100, country, 
     mboost.C[mstop(cvm)]
     }
     
-    #Forecast using LAST time to forecast NEXT h period
+    #Forecast at i = 1 should be the forecast at start of the test
+    #Future forecasts should be start of test + i
     pred_final[i] =  predict(mboost.C,
                                  zoo.C_predict, 
                                  type="response") 
-    
+      
     if(i %% 10 == 0)
     {
       cat(i)
-      save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
-      #save(pred_final, file = paste("gbm_",c,"_h",h,"d",d,"_pred_",run,"_.RData",sep=""))
+      #save(pred_final, file = "~/Google Drive/Independent Work/Saved RData/save_pred_recent_gbm_roll.RData")
     }
   }
   #Print how long it took for ALL the run
   time_spent = proc.time() - ptm
   
-  #Convert into time series object
+  #Convert the prediction into a zoo object
   from <- as.Date(test_start)
   to <- as.Date(test_start) + months(run)
   months <- seq.Date(from=from,to=to,by="month")
   zoo.pred = zoo(pred_final, months)
+  
+  #Zoo object should mimic the time period of the predictino output
   zoo.REC = window(REC_lagRESULT, 
                    start = start(zoo.pred),
                    end=end(zoo.pred),
@@ -668,25 +671,13 @@ mboost.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,m = 100, country, 
        axes = TRUE, 
        ylim=c(0,1))
   
-  #Return Prediction, Final Score, CV,Score and Ideally ROC
+  #Return Prediction, ROC score, time spent and the mboost model
   return(list(zoo.REC,
               zoo.pred,
               roc(zoo.REC,zoo.pred),
               time_spent,
               mboost.C))
 }
-
-cl <- makeCluster(25) # e.g. to run cvrisk on 25 nodes via PVM
-myApply <- function(X, FUN, ...) {
-  myFun <- function(...) {
-    library("mboost") # load mboost on nodes
-    FUN(...)
-  }
-  ## further set up steps as required
-  parLapply(cl = cl, X, myFun, ...)
-}
-cvrisk(model, papply = myApply)
-stopCluster(cl)
 
 #Rolling Estimate of GBM
 """

@@ -32,7 +32,7 @@ gbm.US_in_h3d3_big = gbm.forecast_lag(3,3,zoo.US_lag0_big, "US", "bernoulli", tr
 gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
 gbm.US_in_h6d3_big = gbm.forecast_lag(6,3,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
 gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h12d3_big = gbm.forecast_lag(12,3,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h12d4_big = gbm.forecast_lag(12,4,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
 gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
 #####
 
@@ -102,7 +102,9 @@ gbm.US_h12d4_roll_full = gbm.roc_roll(forecast = 12, lags = 4, zoo.US_lag0, run.
 #save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4112015.RData")
 #save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4112015.RData")
 #save(gbm.US_h12d4_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4112015.RData")
+setwd("~/Google Drive/Independent Work/Writing/Graphs")
 
+write.csv(gbm.US_h12d4_roll_full[[4]], file = "gbm.US_h2d4_roll_full.csv")
 
 #Travis Boost 
 gbm.US_h3d0_roll_travis = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_berge, run.full = TRUE, country = "US", m = 1000)
@@ -111,8 +113,12 @@ gbm.US_h12d0_roll_travis = gbm.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zo
 
 mb.US_h0d0_roll_travis <- mboost.roc_roll(forecast = 0, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
 mb.US_h6d0_roll_travis <- mboost.roc_roll(forecast = 6, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
-mb.US_h12d0_roll_travis <- mboost.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
-mb.US_h12d0_roll_travis_new <- mboost.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h12d0_roll_travis_2000 <- mboost.roc_roll(forecast = 12, lags = 0, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US", manual_end = TRUE, input_end = "1985-05-01", CVM = FALSE)
+mb.US_h12d0_roll_travis_CV_100 <- mboost.roc_roll(forecast = 12, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US",CVM = TRUE)
+mb.US_h12d0_roll_travis_NOCV_100 <- mboost.roc_roll(forecast = 12, zoo.C_lag0 = zoo.US_lag0_berge, m = 100, country = "US",CVM = FALSE)
+mb.US_h12d0_roll_travis_CV_200 <- mboost.roc_roll(forecast = 12, zoo.C_lag0 = zoo.US_lag0_berge, m = 2000, country = "US",CVM = TRUE)
+
+#Expanding window seems to not overfit 2010 as much.
 
 View(mb.US_h12d0_roll_travis[[2]])
 
@@ -167,6 +173,45 @@ zoo.US_lag0_S = transform_season_US()
 gbm.US_h3d3_roll_serena = gbm.roc_roll(forecast = 3, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
 gbm.US_h6d3_roll_serena = gbm.roc_roll(forecast = 6, lags = 3, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
 gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.C_lag0 = zoo.US_lag0_S, run.full = TRUE, country = "US", input_end = "1977-02-01", manual_end = TRUE)
+
+
+#Analysis
+
+plot_zoo_REC(gbm.US_h3d3_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 3 months")
+plot_zoo_REC(gbm.US_h6d3_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 6 months")
+plot_zoo_REC(gbm.US_h12d4_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 12 months")
+
+##T-test for AUC##
+
+#In-Sample
+roc.test(glm.in_US_h3, gbm.US_in_h3d3_big[[3]], alternative = "less")
+roc.test(glm.in_US_h6, gbm.US_in_h6d3_big[[3]], alternative = "less")
+roc.test(glm.in_US_h12, gbm.US_in_h12d3_big[[3]], alternative = "less")
+
+roc.test(glm.in_US_h3, gbm.US_in_h3d0_short[[3]], alternative = "less")
+roc.test(glm.in_US_h6, gbm.US_in_h6d0_short[[3]], alternative = "less")
+roc.test(glm.in_US_h12, gbm.US_in_h12d0_short[[3]], alternative = "less")
+
+roc.test(gbm.US_in_h3d3_big[[3]], gbm.US_in_h3d0_short[[3]], alternative = "greater")
+roc.test(gbm.US_in_h6d3_big[[3]], gbm.US_in_h6d0_short[[3]], alternative = "greater")
+roc.test(gbm.US_in_h12d3_big[[3]], gbm.US_in_h12d0_short[[3]], alternative = "greater")
+
+
+
+#Out-Of-Sample
+roc.test(glm.US_h3_roll_best[[1]], gbm.US_h3d0_roll_CB[[3]], alternative = "greater")
+roc.test(glm.US_h6_roll_best[[1]], gbm.US_h6d0_roll_CB[[3]], alternative = "greater")
+roc.test(glm.US_h12_roll_best[[1]], gbm.US_h12d0_roll_CB[[3]], alternative = "greater")
+
+roc.test(glm.US_h3_roll_best[[1]], gbm.US_h3d3_roll_full[[3]], alternative = "greater")
+roc.test(glm.US_h6_roll_best[[1]], gbm.US_h6d3_roll_full[[3]], alternative = "greater")
+roc.test(glm.US_h12_roll_best[[1]], gbm.US_h12d4_roll_full[[3]], alternative = "greater")
+
+roc.test(gbm.US_h3d3_roll_full[[3]], gbm.US_h3d0_roll_CB[[3]], alternative = "less")
+roc.test(gbm.US_h6d3_roll_full[[3]], gbm.US_h6d0_roll_CB[[3]], alternative = "less")
+roc.test(gbm.US_h12d4_roll_full[[3]], gbm.US_h12d0_roll_CB[[3]], alternative = "less")
+
+
 
 
 

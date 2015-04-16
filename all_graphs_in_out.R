@@ -118,7 +118,7 @@ US_in_logit_h12 <- plot_zoo_obj(glm.in_US_h12[[11]],
 
 #In-Sample: Boost Large Data
 JP_in_boost_large_h3 <- plot_zoo_obj(gbm.JP_h3d0_big[[4]], 
-                                  roc = gbm.JP_h3d0_big[[3]][9],
+                                  roc = ,
                                   horizon = 3, 
                                   IN = TRUE, 
                                   LARGE = TRUE)
@@ -222,7 +222,7 @@ JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[1]][[11]],
                              BOOST = FALSE)
 
 JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_best[[1]][[11]],
-                             roc = glm.JP_h12_roll_best[[1]][9],
+                             roc = [9],
                              varname = "JPNTK0959", 
                              horizon = 12, 
                              IN = FALSE, 
@@ -272,8 +272,10 @@ JP_out_boost_big_h6 <- plot_zoo_obj(gbm.JP_h6d0_roll_big[[2]],
                                  LARGE = TRUE)
 
 
+roc_JP_h12_big = roc(gbm.JP_h12d0_roll_big[[1]],gbm.JP_h12d0_roll_big[[2]], direction="<")
+
 JP_out_boost_big_h12 <- plot_zoo_obj(gbm.JP_h12d0_roll_big[[2]], 
-                                 roc = gbm.JP_h12d0_roll_big[[3]][9],
+                                 roc = roc_JP_h12_big[[9]],
                                  horizon = 12, 
                                  IN = FALSE, 
                                  LARGE = TRUE)
@@ -292,6 +294,7 @@ US_out_boost_big_h6 <- plot_zoo_obj(gbm.US_h6d3_roll_full[[2]],
                                     IN = FALSE, 
                                     LARGE = TRUE,
                                     JP = FALSE)
+
 
 
 US_out_boost_big_h12 <- plot_zoo_obj(gbm.US_h12d4_roll_full[[2]], 
