@@ -118,7 +118,7 @@ US_in_logit_h12 <- plot_zoo_obj(glm.in_US_h12[[11]],
 
 #In-Sample: Boost Large Data
 JP_in_boost_large_h3 <- plot_zoo_obj(gbm.JP_h3d0_big[[4]], 
-                                  roc = ,
+                                  roc = gbm.JP_h3d0_big[[3]][9],
                                   horizon = 3, 
                                   IN = TRUE, 
                                   LARGE = TRUE)
@@ -136,22 +136,22 @@ JP_in_boost_large_h12 <- plot_zoo_obj(gbm.JP_h12d0_big[[4]],
                                   LARGE = TRUE)
 
 
-US_in_boost_large_h3 <- plot_zoo_obj(gbm.US_in_h3d0_big[[4]], 
-                                     roc = gbm.US_in_h3d0_big[[3]][9],
+US_in_boost_large_h3 <- plot_zoo_obj(gbm.US_in_h3d3_big[[4]], 
+                                     roc = gbm.US_in_h3d3_big[[3]][9],
                                      horizon = 3, 
                                      IN = TRUE, 
                                      LARGE = TRUE,
                                      JP = FALSE)
 
-US_in_boost_large_h6 <- plot_zoo_obj(gbm.US_in_h6d0_big[[4]], 
-                                     roc = gbm.US_in_h6d0_big[[3]][9],
+US_in_boost_large_h6 <- plot_zoo_obj(gbm.US_in_h6d3_big[[4]], 
+                                     roc = gbm.US_in_h6d3_big[[3]][9],
                                      horizon = 6, 
                                      IN = TRUE, 
                                      LARGE = TRUE,
                                      JP = FALSE)
 
-US_in_boost_large_h12 <- plot_zoo_obj(gbm.US_in_h12d0_big[[4]], 
-                                      roc = gbm.US_in_h12d0_big[[3]][9],
+US_in_boost_large_h12 <- plot_zoo_obj(gbm.US_in_h12d4_big[[4]], 
+                                      roc = gbm.US_in_h12d4_big[[3]][9],
                                       horizon = 12, 
                                       IN = TRUE, 
                                       LARGE = TRUE,
@@ -203,9 +203,9 @@ US_in_boost_small_h12 <- plot_zoo_obj(gbm.US_in_h12d0_short[[4]],
 
 #Out-Sample: Logit Roll
 
-JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_out_best[[1]][[11]],
-                            roc = glm.JP_h3_out_best[[1]][9],
-                            varname = "JPNTK0199", 
+JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_roll_best[[1]][[11]],
+                            roc = glm.JP_h3_roll_best[[1]][9],
+                            varname = "JPNTK0096", 
                             horizon = 3, 
                             IN = FALSE, 
                             LARGE = TRUE, 
@@ -222,7 +222,7 @@ JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[1]][[11]],
                              BOOST = FALSE)
 
 JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_best[[1]][[11]],
-                             roc = [9],
+                             roc = glm.JP_h12_roll_best[[1]][9],
                              varname = "JPNTK0959", 
                              horizon = 12, 
                              IN = FALSE, 
@@ -323,21 +323,22 @@ JP_out_boost_small_h12 <- plot_zoo_obj(gbm.JP_h12d0_roll_short[[2]],
                                    LARGE = FALSE)
 
 
-US_out_boost_small_h3 <- plot_zoo_obj(gbm.US_h3d0_roll_CB[[2]],
-                                      roc = gbm.US_h3d0_roll_CB[[3]][9],
+US_out_boost_small_h3 <- plot_zoo_obj(gbm.US_h3d0_roll_CB5[[2]],
+                                      roc = gbm.US_h3d0_roll_CB5[[3]][9],
                                       horizon = 3, 
                                       IN = FALSE, 
                                       LARGE = FALSE,
                                       JP = FALSE)
-US_out_boost_small_h6 <- plot_zoo_obj(gbm.US_h6d0_roll_CB[[2]],
-                                      roc = gbm.US_h6d0_roll_CB[[3]][9],
+
+US_out_boost_small_h6 <- plot_zoo_obj(gbm.US_h6d0_roll_CB5[[2]],
+                                      roc = gbm.US_h6d0_roll_CB5[[3]][9],
                                       horizon = 6, 
                                       IN = FALSE, 
                                       LARGE = FALSE,
                                       JP = FALSE)
 
-US_out_boost_small_h12 <- plot_zoo_obj(gbm.US_h12d0_roll_CB[[2]],
-                                       roc = gbm.US_h12d0_roll_CB[[3]][9],
+US_out_boost_small_h12 <- plot_zoo_obj(gbm.US_h12d0_roll_CB5[[2]],
+                                       roc = gbm.US_h12d0_roll_CB5[[3]][9],
                                        horizon = 12, 
                                        IN = FALSE, 
                                        LARGE = FALSE,
@@ -389,12 +390,9 @@ load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h3d0_roll_short_4112015
 load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h6d0_roll_short_4112015.RData")
 load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_short_4112015.RData")
 
-
-
-
-# save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
-# save(glm.US_h6_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h6_roll_best_4112015.RData")
-# save(glm.US_h12_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_best_4112015.RData")
+#save(glm.US_h3_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4152015.RData")
+#save(glm.US_h6_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h6_roll_best_4152015.RData")
+#save(glm.US_h12_roll_best, file = "~/Google Drive/Independent Work/Saved RData/glm.US_h12_roll_best_4152015.RData")
 # 
 # save(gbm.US_h3d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4142015.RData")
 # save(gbm.US_h6d3_roll_full, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4142015.RData")
@@ -404,9 +402,9 @@ load("~/Google Drive/Independent Work/Saved RData/gbm.JP_h12d0_roll_short_411201
 # save(gbm.US_h6d3_roll_serena, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_serena_4122015.RData")
 #save(gbm.US_h12d4_roll_serena, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_serena_4132015.RData")
 # 
-# save(gbm.US_h3d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4112015.RData")
-# save(gbm.US_h6d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4112015.RData")
-# save(gbm.US_h12d0_roll_CB, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4112015.RData")
+#save(gbm.US_h3d0_roll_CB5, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4152015.RData")
+#save(gbm.US_h6d0_roll_CB5, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4152015.RData")
+#save(gbm.US_h12d0_roll_CB5, file = "~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4152015.RData")
 
 #US Load
 load( "~/Google Drive/Independent Work/Saved RData/glm.US_h3_roll_best_4112015.RData")
@@ -417,6 +415,6 @@ load("~/Google Drive/Independent Work/Saved RData/gbm.US_h3d3_roll_full_4142015.
 load("~/Google Drive/Independent Work/Saved RData/gbm.US_h6d3_roll_full_4142015.RData")
 load("~/Google Drive/Independent Work/Saved RData/gbm.US_h12d4_roll_full_4142015.RData")
 
-load("~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB_4112015.RData")
-load("~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB_4112015.RData")
-load("~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB_4112015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h3d0_roll_CB5_4152015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h6d0_roll_CB5_4152015.RData")
+load("~/Google Drive/Independent Work/Saved RData/gbm.US_h12d0_roll_CB5_4152015.RData")

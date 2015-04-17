@@ -196,7 +196,7 @@ read_berge_US <- function()
 }
 
 ### US Transform Season Function ### 
-transform_season_US <- function(rec = 'D')
+transform_season_US <- function(RAW = FALSE)
 {
   ####Convert to Zoo ###
   #strs.US <- readLines("~/Google Drive/Independent Work/Data/US/US_SERENA.csv")
@@ -212,38 +212,14 @@ transform_season_US <- function(rec = 'D')
                            stringsAsFactors=FALSE,
                            row.names = 1
   )
-  #Get US Recessionary binary 0 1
 
-  if(rec == "D")
-  {
-    df.US$USRECE <- NULL
-    df.US$USRECG <- NULL
-  }
-  #Get US Severity with lowest Employment
-  else if(rec == "E")
-  {
-    df.US$USRECD <- NULL
-    df.US$USRECG <- NULL
-    df.US$USRECD <- df.US$USRECE
-    df.USRECE <- NULL
-    df.US$USRECD[abs(df.US$USRECD) > 0] <- as.integer(abs(df.US$USRECD[abs(df.US$USRECD) > 0])+1)    
-  }
-  #Get US Severity with lowest GDP
-  else
-  {
-    #Delete two other columns
-    df.US$USRECE <- NULL
-    df.US$USRECD <- NULL
-    #Set US Severity with lowest GDP to USRECD
-    df.US$USRECD <- df.US$USRECG
-    #Delete US Severity column
-    df.USRECG <- NULL
-    #Order Recessions, if gdp less than 0 set as 1
-    df.US$USRECD[abs(df.US$USRECD) > 0] <- as.integer(abs(df.US$USRECD[abs(df.US$USRECD) > 0])+1)    
-  }
   df.US = date_COUNTRY(df.US)
   zoo.US = zoo_COUNTRY(df.US)
   
+  if(RAW == TRUE)
+  {
+    return(zoo.US)
+  }
   ### Fill in NA ####
   zoo.US = na.approx(zoo.US)
   #Last Observation Carry Forward
@@ -841,7 +817,7 @@ gbm.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,  country, distr = "b
        main = paste(c, ":", "Boosting Rolling Forecast",h,"Months with", m, "iterations"), 
        axes = TRUE, 
        ylim=c(0,1))
-  roc_score = oc(zoo.REC,zoo.pred, direction = c("<"))
+  roc_score = roc(zoo.REC,zoo.pred, direction = c("<"))
 
   #Return Prediction, Final Score, CV,Score and Ideally ROC
   return(list(zoo.REC,
