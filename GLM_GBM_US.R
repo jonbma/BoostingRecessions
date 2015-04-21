@@ -5,6 +5,7 @@
 zoo.US_lag0 = transform_season_US()
 zoo.US_lag0_big = zoo.US_lag0
 zoo.US_lag0_berge = read_berge_US()
+zoo.US = transform_season_US(RAW = TRUE)
 
 
 SHORT_US = c("USRECD", "A0M001", "CLAIMUII", "A1M008", "PMNO", "A0M027", "PERMITNSA", "FSPCOM", "CCINRV", "SFYGT10", "HHSNTN")
@@ -29,11 +30,11 @@ glm.US_in_all_h12 = glm.out_roll_all(zoo.US_lag0, h = 12, model = 0, c = "US")
 
 ####Boost GRAPHED
 gbm.US_in_h3d3_big = gbm.forecast_lag(3,3,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h3d0_short = gbm.forecast_lag(3,0,zoo.US_lag0_CB5, "US", "bernoulli", train = 1.0) 
 gbm.US_in_h6d3_big = gbm.forecast_lag(6,3,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h6d0_short = gbm.forecast_lag(6,0,zoo.US_lag0_CB5, "US", "bernoulli", train = 1.0) 
 gbm.US_in_h12d4_big = gbm.forecast_lag(12,4,zoo.US_lag0_big, "US", "bernoulli", train = 1.0) 
-gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_CB, "US", "bernoulli", train = 1.0) 
+gbm.US_in_h12d0_short = gbm.forecast_lag(12,0,zoo.US_lag0_CB5, "US", "bernoulli", train = 1.0) 
 #####
 setwd("~/Google Drive/Independent Work/Writing/Graphs")
 write.csv(gbm.US_in_h3d0_short[[1]], file="gbm.US_in_h3d0_short.csv")
@@ -115,6 +116,11 @@ gbm.US_h3d0_roll_CB = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB, run.f
 gbm.US_h6d0_roll_CB5 = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h12d0_roll_CB5 = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h3d0_roll_CB5 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
+
+
+write.csv(gbm.US_h3d0_roll_CB5[4], file = "gbm.US_h3d0_roll_CB5.csv")
+write.csv(gbm.US_h6d0_roll_CB5[4], file = "gbm.US_h6d0_roll_CB5.csv")
+write.csv(gbm.US_h12d0_roll_CB5[4], file = "gbm.US_h12d0_roll_CB5.csv")
 
 
 

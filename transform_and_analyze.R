@@ -448,6 +448,7 @@ gbm.forecast_lag <- function(forecast, lags, zoo.C_lag0, country, distr = "berno
                       bag.fraction = 0.5, 
                       train.fraction = train, 
                       cv.folds = 10, 
+                      interaction.depth = 1, #turns gbm into a stump
                       n.trees = m)
   
   #best.iter_test = gbm.perf(gbm.C, method="test"))
@@ -751,6 +752,7 @@ gbm.roc_roll <- function(forecast = 0,lags = 3, zoo.C_lag0,  country, distr = "b
                 shrinkage = steps, 
                 bag.fraction = 1,
                 n.trees = m,
+                interaction.depth = 1, #turns gbm into a stump
                 verbose = FALSE)
     }
       

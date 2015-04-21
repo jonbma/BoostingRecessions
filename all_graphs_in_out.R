@@ -22,7 +22,7 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
   }
   else
   {
-    method = paste("Best Logit Model using", varname)
+    method = paste("Logit Model", varname)
   }
   if(JP == TRUE)
   {
@@ -44,11 +44,11 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
   
   if(IN == TRUE)
   {
-    sample_type = "In-sample"
+    sample_type = "In-Sample"
   }
   else
   {
-    sample_type = "Out-sample"    
+    sample_type = "Out-Sample"    
   }
 
   recession.df <- data.frame(start=start, end=end)
@@ -61,8 +61,8 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
     geom_rect(data=recession.df, 
               aes(xmin=start,xmax=end, ymin=-Inf,ymax=+Inf), 
               fill="red", alpha=0.3) +
-    ggtitle(paste(country,":",method,",",horizon, "Months",",", sample_type))+
-    annotate("text", x = as.Date(text_start), y = 0.90, label = paste("AUROC:",roc))+
+    ggtitle(paste(country,":",method,",",sample_type,",H=",horizon, sep=""))+
+    annotate("text", x = as.Date(text_start), y = 0.90, label = paste("AUC=",roc, sep=""))+
     theme(axis.title.x = element_blank(), axis.title.y = element_blank())
   
   return(gg_object)
@@ -72,21 +72,21 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
 #In-Sample: Logit
 JP_in_logit_h3 <- plot_zoo_obj(glm.in_JP_h3[[11]], 
                     roc = glm.in_JP_h3[[9]],
-                    varname = "JPNTK0118", 
+                    varname = "(Business L Electric Machinery)", 
                     horizon = 3, 
                     IN = TRUE, 
                     LARGE = TRUE, JP = TRUE, BOOST = FALSE)
 
 JP_in_logit_h6 <- plot_zoo_obj(glm.in_JP_h6[[11]], 
                             roc = glm.in_JP_h6[[9]],
-                            varname = "JPNTK0199", 
+                            varname = "(Business M Electric Machinery)", 
                             horizon = 6, 
                             IN = TRUE, 
                             LARGE = TRUE, JP = TRUE, BOOST = FALSE)
 
 JP_in_logit_h12 <- plot_zoo_obj(glm.in_JP_h12[[11]], 
                             roc = glm.in_JP_h12[[9]],
-                            varname = "JPNTK1954", 
+                            varname = "(Lending S Manuf,Petroleum,Coal)", 
                             horizon = 12, 
                             IN = TRUE, 
                             LARGE = TRUE, JP = TRUE, BOOST = FALSE)
@@ -94,21 +94,21 @@ JP_in_logit_h12 <- plot_zoo_obj(glm.in_JP_h12[[11]],
 
 US_in_logit_h3 <- plot_zoo_obj(glm.in_US_h3[[11]], 
                                roc = glm.in_US_h3[[9]],
-                               varname = "SFYGM3", 
+                               varname = "(3 month - FF spread)", 
                                horizon = 3, 
                                IN = TRUE, 
                                LARGE = TRUE, JP = FALSE, BOOST = FALSE)
 
 US_in_logit_h6 <- plot_zoo_obj(glm.in_US_h6[[11]], 
                                roc = glm.in_US_h6[[9]],
-                               varname = "SFYGT5", 
+                               varname = "(5 year - FF spread)", 
                                horizon = 6, 
                                IN = TRUE, 
                                LARGE = TRUE, JP = FALSE, BOOST = FALSE)
 
 US_in_logit_h12 <- plot_zoo_obj(glm.in_US_h12[[11]], 
                                 roc = glm.in_US_h12[[9]],
-                                varname = "SFYGT10", 
+                                varname = "(10 year - FF spread)", 
                                 horizon = 12, 
                                 IN = TRUE, 
                                 LARGE = TRUE, JP = FALSE, BOOST = FALSE)
@@ -205,7 +205,7 @@ US_in_boost_small_h12 <- plot_zoo_obj(gbm.US_in_h12d0_short[[4]],
 
 JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_roll_best[[1]][[11]],
                             roc = glm.JP_h3_roll_best[[1]][9],
-                            varname = "JPNTK0096", 
+                            varname = "(Business L Manuf. Chemicals)", 
                             horizon = 3, 
                             IN = FALSE, 
                             LARGE = TRUE, 
@@ -214,7 +214,7 @@ JP_out_logit_h3 <- plot_zoo_obj(glm.JP_h3_roll_best[[1]][[11]],
 
 JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[1]][[11]],
                              roc = glm.JP_h6_roll_best[[1]][9],
-                             varname = "JPNTK0199", 
+                             varname = "(Business M Electric Machinery)", 
                              horizon = 6, 
                              IN = FALSE, 
                              LARGE = TRUE, 
@@ -223,7 +223,6 @@ JP_out_logit_h6 <- plot_zoo_obj(glm.JP_h6_roll_best[[1]][[11]],
 
 JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_best[[1]][[11]],
                              roc = glm.JP_h12_roll_best[[1]][9],
-                             varname = "JPNTK0959", 
                              horizon = 12, 
                              IN = FALSE, 
                              LARGE = TRUE, 
@@ -233,7 +232,7 @@ JP_out_logit_h12 <- plot_zoo_obj(glm.JP_h12_roll_best[[1]][[11]],
 
 US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[1]][[11]],
                                 roc = glm.US_h3_roll_best[[1]][9],
-                                varname = "PMNO", 
+                                varname = "(NAPM new orders)", 
                                 horizon = 3, 
                                 IN = FALSE, 
                                 LARGE = TRUE, 
@@ -242,7 +241,7 @@ US_out_logit_h3 <- plot_zoo_obj(glm.US_h3_roll_best[[1]][[11]],
 
 US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[1]][[11]],
                                 roc = glm.US_h6_roll_best[[1]][9],
-                                varname = "PMNO", 
+                                varname = "(NAPM new orders)", 
                                 horizon = 6, 
                                 IN = FALSE, 
                                 LARGE = TRUE, 
@@ -251,7 +250,7 @@ US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[1]][[11]],
 
 US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_roll_best[[1]][[11]],
                                  roc = glm.US_h12_roll_best[[1]][9],
-                                 varname = "SFYGT5", 
+                                 varname = "(5 year - FF spread)", 
                                  horizon = 12, 
                                  IN = FALSE, 
                                  LARGE = TRUE, 

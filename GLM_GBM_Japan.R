@@ -18,6 +18,8 @@ zoo.JP_lag0_short = zoo.JP_lag0_medium[,SHORT_TN_LIST]
 glm.in_JP_h3 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0118")
 glm.in_JP_h6 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0199")
 glm.in_JP_h12 = glm.roc_in(zoo.JP_lag0_big, forecast = 3, country = "JP", varname = "JPNTK0118")
+glm.in_JP_h12 = glm.roc_in(zoo.JP_lag0_big, forecast = 24, country = "JP", varname = "JPNTK0118")
+
 
 #glm.roc_in(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0595")
 #Best Logit Model
@@ -57,6 +59,10 @@ glm.JP_h6_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 6, country = "JP"
 glm.JP_h12_roll_best = glm.roc_roll(zoo.JP_lag0_big, forecast = 12, country = "JP", varname = "JPNTK0959")
 ######
 
+glm.JP_h24 = glm.roc_roll(zoo.JP_lag0_short, forecast = 24, country = "JP", varname = "OPTA")
+
+
+
 #All GLM Out Of Sample STANDARD w/ ROC Score
 glm.out_all_JP_h3 = glm.out_roll_all(zoo.JP_lag0_big, h = 3, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
 glm.out_all_JP_h6 = glm.out_roll_all(zoo.JP_lag0_big, h = 6, c = "JP", graph_param = FALSE, all_col = TRUE, model = 1)
@@ -74,14 +80,10 @@ save(glm.out_roll_all_JP_h6, file = "~/Google Drive/Independent Work/Saved RData
 save(glm.out_roll_all_JP_h12, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h12_4102015.RData")
 save(glm.out_roll_all_JP_h12_big, file = "~/Google Drive/Independent Work/Saved RData/glm.out_roll_all_JP_h12_big_4112015.RData")
 
-
-
-
-
-#Boost Full No Lags
-gbm.JP_h3d3_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
-gbm.JP_h6d3_roll_full = gbm.roc_roll(forecast = 6, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
-gbm.JP_h12d3_roll_full = gbm.roc_roll(forecast = 12, lags = 0, zoo.JP_lag0_TN, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
+#Boost Full  Lags
+gbm.JP_h3d3_roll_big = gbm.roc_roll(forecast = 3, lags = 3, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400)
+gbm.JP_h6d3_roll_big = gbm.roc_roll(forecast = 6, lags = 6, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400)
+gbm.JP_h12d3_roll_big = gbm.roc_roll(forecast = 12, lags = 12, zoo.JP_lag0_big, run.full = TRUE, country = "JP", max_m = 400)
 
 #Boost Full No Lags
 gbm.JP_h3d0_roll_full = gbm.roc_roll(forecast = 3, lags = 0, zoo.JP_lag0_all, run.full = TRUE, country = "JP", max_m = 400, end_train = "1995-08-01")
