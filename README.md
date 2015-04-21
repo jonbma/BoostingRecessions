@@ -1,2 +1,1 @@
-Senior Thesis Code for R
-Need to include write ups as well!
+Read Me will be updated as well as including a PDF of the senior thesis. 
