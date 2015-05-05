@@ -167,7 +167,7 @@ plot(gbm.JP_h3d0_roll_big[[5]], col = "black", ylab = "Number of Selected Variab
 
 plot_zoo_REC(gbm.JP_h3d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 3 months")
 plot_zoo_REC(gbm.JP_h6d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 6 months")
-plot_zoo_REC(gbm.JP_h12d0_roll_big[[5]], "positive variables", country = "JP", TITLE="Japan: Positive Variables Selected by Boosting in Large Dataset for Horizon = 12 months")
+plot_zoo_REC(gbm.JP_h12d0_roll_big[[5]], "positive variables", country = "JP", TITLE="")
 
 
 ##T-test for AUC##

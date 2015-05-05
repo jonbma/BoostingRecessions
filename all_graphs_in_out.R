@@ -36,7 +36,7 @@ plot_zoo_obj <- function(model_output, roc, varname = "PMP", IN = TRUE, BOOST = 
   else
   {
     country = "US"
-    RECD = zoo.US_lag0$USRECD
+    RECD = window(zoo.US_lag0$USRECD, start = start(model_output))
     start <- index(RECD[which(diff(RECD)==1)])
     end   <- index(RECD[which(diff(RECD)==-1)-1])
     text_start = "1965-12-01"    
@@ -250,7 +250,7 @@ US_out_logit_h6 <- plot_zoo_obj(glm.US_h6_roll_best[[1]][[11]],
 
 US_out_logit_h12 <- plot_zoo_obj(glm.US_h12_roll_best[[1]][[11]],
                                  roc = glm.US_h12_roll_best[[1]][9],
-                                 varname = "(5 year - FF spread)", 
+                                 varname = "5 year - FF spread", 
                                  horizon = 12, 
                                  IN = FALSE, 
                                  LARGE = TRUE, 

@@ -117,6 +117,9 @@ gbm.US_h6d0_roll_CB5 = gbm.roc_roll(forecast = 6, lags = 0, zoo.US_lag0_CB5, run
 gbm.US_h12d0_roll_CB5 = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 gbm.US_h3d0_roll_CB5 = gbm.roc_roll(forecast = 3, lags = 0, zoo.US_lag0_CB5, run.full = TRUE, country = "US", max_m = 400)
 
+gbm.US_h12d0_roll_CB5_small = gbm.roc_roll(forecast = 12, lags = 0, zoo.US_lag0_big[,c("USRECD","SFYGT5", "A0M027")], run.full = TRUE, country = "US", max_m = 400)
+
+c("USRECD", "A0M001", "CLAIMUII", "A1M008", "PMNO", "A0M027", "PERMITNSA", "FSPCOM", "CCINRV", "SFYGT5", "HHSNTN")
 
 write.csv(gbm.US_h3d0_roll_CB5[4], file = "gbm.US_h3d0_roll_CB5.csv")
 write.csv(gbm.US_h6d0_roll_CB5[4], file = "gbm.US_h6d0_roll_CB5.csv")
@@ -171,9 +174,9 @@ gbm.US_h12d4_roll_serena = gbm.roc_roll(forecast = 12, lags = 4, zoo.C_lag0 = zo
 
 #Analysis
 
-plot_zoo_REC(gbm.US_h3d3_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 3 months")
+plot_zoo_REC(gbm.US_h3d3_roll_full[[5]], "positive variables", country = "US", TITLE="")
 plot_zoo_REC(gbm.US_h6d3_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 6 months")
-plot_zoo_REC(gbm.US_h12d4_roll_full[[5]], "positive variables", country = "US", TITLE="US: Positive Variables Selected by Boosting in Large Dataset for Horizon = 12 months")
+plot_zoo_REC(gbm.US_h12d4_roll_full[[5]], "positive variables", country = "US", TITLE="")
 
 ##T-test for AUC##
 
