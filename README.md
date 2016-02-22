@@ -1,1 +1,1 @@
-Read Me will be updated as well as including a PDF of the senior thesis. 
+Paper is here: https://penneconjournalblog.files.wordpress.com/2016/02/ma.pdf
