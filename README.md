@@ -1,1 +1,1 @@
-Paper can be found here: https://penneconjournalblog.files.wordpress.com/2016/04/1-2-ma2.pdf
+Paper can be found here: https://www.dropbox.com/s/dhwi586z4v7tvbo/PJE_boostrecessions_jm.pdf?dl=0
